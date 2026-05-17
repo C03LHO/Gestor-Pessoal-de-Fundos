@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2, X, CheckSquare, Square, Pencil, RefreshCw } from "lucide-react";
 import { brl, dataBR } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import { SwipeCard } from "@/components/ux/SwipeCard";
 import { haptic } from "@/lib/ux/haptic";
 import { useToast } from "@/components/ux/Toast";
 
@@ -261,15 +260,12 @@ export function LancamentosClient({ lancamentos, ativos }: { lancamentos: Lanc[]
           filtrados.map((l) => {
             const sel = selecionados.has(l.id);
             return (
-              <SwipeCard
-                key={l.id}
-                onDelete={() => { haptic("erro"); setAlvoUnico(l); setConfirmar("unico"); }}
-              >
               <div
+                key={l.id}
                 className={cn("rounded-xl border p-3 transition",
                   sel ? "bg-emerald-500/5 border-emerald-500/40" : "bg-zinc-900/40 border-zinc-800")}>
                 <div className="flex items-start gap-3">
-                  <button onClick={() => toggle(l.id)} className="mt-1 text-zinc-400">
+                  <button onClick={() => toggle(l.id)} className="mt-1 text-zinc-400 p-1 -ml-1" aria-label="Selecionar">
                     {sel ? <CheckSquare size={18} className="text-emerald-400" /> : <Square size={18} />}
                   </button>
                   <button
@@ -295,15 +291,14 @@ export function LancamentosClient({ lancamentos, ativos }: { lancamentos: Lanc[]
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setAlvoUnico(l); setConfirmar("unico"); }}
-                    className="text-rose-400 p-1 -mr-1"
+                    onClick={() => { haptic("erro"); setAlvoUnico(l); setConfirmar("unico"); }}
+                    className="text-rose-400 p-2 -mr-1 min-h-[44px] min-w-[44px] flex items-center justify-center"
                     aria-label="Excluir"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={18} />
                   </button>
                 </div>
               </div>
-              </SwipeCard>
             );
           })
         )}
