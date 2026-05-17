@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="theme-color" content="#09090b" />
+<title>Fundos — offline</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #09090b; color: #e4e4e7;
+    font-family: -apple-system, system-ui, sans-serif; }
+  .wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+  .card { max-width: 360px; text-align: center; }
+  h1 { font-size: 24px; margin: 0 0 8px; }
+  p { color: #a1a1aa; font-size: 14px; line-height: 1.5; }
+  .badge { display: inline-block; padding: 4px 8px; background: rgba(244,63,94,.15);
+           color: #fda4af; border-radius: 6px; font-size: 11px;
+           letter-spacing: .05em; text-transform: uppercase; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+  <div class="wrap"><div class="card">
+    <span class="badge">Sem conexão</span>
+    <h1>Você está offline</h1>
+    <p>Não foi possível alcançar o servidor. Confira a Tailscale e se o PC está ligado.</p>
+  </div></div>
+</body>
+</html>

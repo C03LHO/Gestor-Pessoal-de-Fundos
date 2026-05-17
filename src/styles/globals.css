@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+
+html, body {
+  background: #09090b;
+}
+
+body {
+  font-feature-settings: "ss01", "cv11";
+  font-variant-numeric: tabular-nums;
+}
+
+/* Anonimizar: borra qualquer número tabular */
+html.anonimizar .tabular-nums,
+html.anonimizar .kpi-value {
+  filter: blur(7px);
+  user-select: none;
+  transition: filter 0.2s;
+}
+html.anonimizar .tabular-nums:hover,
+html.anonimizar .kpi-value:hover {
+  filter: blur(0);
+}
+
+/* Animações de transição entre páginas */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+main > div { animation: fadeIn 0.25s ease-out; }
+
+@keyframes toast {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-toast { animation: toast 0.2s ease-out; }
+
+/* Skeleton */
+@keyframes skel {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skel {
+  background: linear-gradient(90deg, #18181b 0%, #27272a 50%, #18181b 100%);
+  background-size: 200% 100%;
+  animation: skel 1.4s infinite linear;
+  border-radius: 0.5rem;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-zinc-800/80 bg-zinc-900/40 backdrop-blur p-4 md:p-5;
+  }
+  .kpi-label { @apply text-[10px] md:text-xs uppercase tracking-wider text-zinc-400; }
+  .kpi-value { @apply text-xl md:text-3xl font-semibold tracking-tight mt-1 truncate; }
+
+  .input {
+    @apply w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2.5 text-base md:text-sm
+           focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60;
+    min-height: 44px;
+  }
+  .label {
+    @apply text-xs uppercase tracking-wider text-zinc-400 mb-1 block;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium
+           bg-emerald-500 text-zinc-950 hover:bg-emerald-400 transition
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    min-height: 44px;
+  }
+  .fab {
+    @apply md:hidden fixed right-4 z-40 w-14 h-14 rounded-full bg-emerald-500 text-zinc-950
+           shadow-2xl flex items-center justify-center active:scale-95 transition;
+    bottom: calc(env(safe-area-inset-bottom, 0) + 5rem);
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm
+           text-zinc-300 hover:bg-zinc-800 transition;
+  }
+  .btn-danger {
+    @apply inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm
+           text-rose-300 hover:bg-rose-950/40 transition;
+  }
+  .table {
+    @apply w-full text-sm;
+  }
+  .table th {
+    @apply text-left font-medium text-zinc-400 text-xs uppercase tracking-wider px-3 py-2 border-b border-zinc-800;
+  }
+  .table td {
+    @apply px-3 py-3 border-b border-zinc-900;
+  }
+  .chip {
+    @apply inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium;
+  }
+}

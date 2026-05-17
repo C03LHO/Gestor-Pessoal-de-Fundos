@@ -1,0 +1,34 @@
+manifestVersion: 1
+id: fundos
+disabled: false
+name: Fundos
+tagline: Gestão pessoal de FIIs
+icon: https://raw.githubusercontent.com/SEU-USUARIO/fundos/main/public/icon-512.png
+category: finance
+version: "0.1.0"
+port: 3000
+description: >-
+  Gestão pessoal de Fundos Imobiliários: dashboard com previsão de
+  proventos, sugestão de rebalanceamento, calendário de pagamentos,
+  relatórios para IR, simulador realista baseado em histórico real e
+  integração automática com Yahoo Finance.
+
+  Roda 100% local. Banco SQLite com backup automático. Múltiplas
+  carteiras. PWA pronto para iPhone (Face ID via Keychain do Safari).
+developer: Você
+website: https://github.com/SEU-USUARIO/fundos
+submitter: Você
+submission: https://github.com/SEU-USUARIO/fundos
+repo: https://github.com/SEU-USUARIO/fundos
+support: https://github.com/SEU-USUARIO/fundos/issues
+gallery:
+  - 1.jpg
+  - 2.jpg
+  - 3.jpg
+releaseNotes: Primeira versão.
+dependencies: []
+permissions: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+torOnly: false

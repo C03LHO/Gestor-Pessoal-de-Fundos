@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Ativo {
+  id           String   @id @default(cuid())
+  ticker       String   @unique
+  nome         String?
+  segmento     String?
+  precoAtual   Float?
+  atualizadoEm DateTime?
+  criadoEm     DateTime @default(now())
+
+  lancamentos  Lancamento[]
+}
+
+model Lancamento {
+  id          String   @id @default(cuid())
+  tipo        String   // COMPRA | VENDA | APORTE | DIVIDENDO | REINVESTIMENTO
+  data        DateTime
+  ativoId     String?
+  ativo       Ativo?   @relation(fields: [ativoId], references: [id], onDelete: SetNull)
+  carteiraId  String?
+  carteira    Carteira? @relation(fields: [carteiraId], references: [id], onDelete: SetNull)
+
+  quantidade  Float?
+  precoUnit   Float?
+  valorTotal  Float
+
+  observacao  String?
+  criadoEm    DateTime @default(now())
+
+  @@index([data])
+  @@index([tipo])
+  @@index([ativoId])
+  @@index([carteiraId])
+  @@index([ativoId, tipo, data])
+  @@index([carteiraId, tipo, data])
+}
+
+model Meta {
+  id                  String   @id @default(cuid())
+  rendaMensalAlvo     Float
+  aporteMensal        Float    @default(0)
+  salarioMensal       Float    @default(0)
+  percentualAporte    Float    @default(0.3)
+  ativa               Boolean  @default(true)
+  criadaEm            DateTime @default(now())
+}
+
+model Configuracao {
+  id                 String  @id @default(cuid())
+  dyEstimadoAA       Float   @default(0.09)
+  cenarioConservador Float   @default(0.06)
+  cenarioModerado    Float   @default(0.09)
+  cenarioOtimista    Float   @default(0.12)
+  moeda              String  @default("BRL")
+  fonteCotacao       String  @default("yahoo")   // "yahoo" | "brapi" | "twelve"
+  brapiToken         String?
+  twelveDataToken    String?
+  intervaloSyncMin   Int     @default(30)
+  authVersion        Int     @default(1)
+  carteiraAtivaId    String?
+  prazoMetaAnos      Int     @default(10)
+  alocacaoAlvo       String? // JSON: {"Logística": 0.30, ...}
+  vapidPublicKey     String?
+  vapidPrivateKey    String?
+  rpId               String  @default("localhost")
+  rpName             String  @default("Fundos")
+  rpOrigin           String? // ex: https://fundos.tail7a0a40.ts.net
+  iaProvedor         String? // "gemini" | "groq"
+  iaApiKey           String?
+  iaModelo           String?
+  backupHabilitado   Boolean @default(false)
+  backupRemote       String? // ex: "gdrive:Fundos-Backup"
+  backupHorario      Int     @default(23) // hora 0..23
+  backupRetencaoDias Int     @default(30)
+  rcloneCaminho      String? // caminho explícito ao executável rclone se fora do PATH
+  backupUltimoEm     DateTime?
+  backupUltimoStatus String? // "ok" | "erro: ..."
+  backupUltimoArquivo String?
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  rotulo    String?
+  criadoEm  DateTime @default(now())
+}
+
+model Passkey {
+  id           String   @id @default(cuid())
+  credentialId String   @unique
+  publicKey    Bytes
+  counter      BigInt   @default(0)
+  transports   String?
+  rotulo       String?
+  criadoEm     DateTime @default(now())
+  ultimoUsoEm  DateTime?
+}
+
+model ChallengeAuth {
+  id         String   @id @default(cuid())
+  challenge  String
+  proposito  String
+  expiraEm   DateTime
+}
+
+model Carteira {
+  id        String   @id @default(cuid())
+  nome      String   @unique
+  cor       String?
+  criadaEm  DateTime @default(now())
+
+  lancamentos Lancamento[]
+}
+
+model WatchlistAtivo {
+  id                String   @id @default(cuid())
+  ticker            String   @unique
+  metaInvestimento  Float    @default(10000)
+  ordem             Int      @default(0)
+  notas             String?
+  criadoEm          DateTime @default(now())
+}
+
+model Cotacao {
+  id        String   @id @default(cuid())
+  ticker    String
+  preco     Float
+  data      DateTime
+  fonte     String   @default("yahoo")
+
+  @@index([ticker, data])
+  @@index([data])
+}

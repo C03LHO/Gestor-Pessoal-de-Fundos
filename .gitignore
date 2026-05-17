@@ -1,0 +1,32 @@
+node_modules
+.next
+out
+*.log
+
+# Env / segredos — NUNCA commitar
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Banco e dados locais
+data.db
+data.db-journal
+backups/
+*.bkp
+
+# Caches
+.cache-historico.json
+.cache-serie.json
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+.claude/
+
+# Build artifacts
+*.tsbuildinfo
