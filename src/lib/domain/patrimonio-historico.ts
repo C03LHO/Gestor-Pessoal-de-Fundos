@@ -1,35 +1,48 @@
 import { prisma } from "../prisma";
+import { recalcularPortfolio, type LancamentoInput, type AtivoInfo } from "./portfolio";
 
 /**
- * Reconstrói a evolução do patrimônio mês a mês a partir dos lançamentos
- * (compras/vendas) e dos preços de cada ativo. Como nem sempre temos cotação
- * histórica detalhada, usamos a cotação ATUAL como aproximação para meses
- * em que não há registro — o que é suficiente para visualizar a trajetória
- * de aportes.
- *
- * Quando a tabela `Cotacao` tiver mais dados, melhora automaticamente.
+ * Reconstrói a evolução do patrimônio mês a mês usando a MESMA engine que
+ * calcula a carteira atual. Para cada mês:
+ *  - filtra lançamentos com data <= fim do mês
+ *  - aplica preço da Cotacao mais recente <= fim do mês (fallback: precoAtual)
+ *  - delega a recalcularPortfolio
  */
 export async function patrimonioHistorico(meses = 12): Promise<{ mes: string; investido: number; valor: number }[]> {
   const ini = new Date();
   ini.setDate(1); ini.setHours(0, 0, 0, 0);
   ini.setMonth(ini.getMonth() - (meses - 1));
 
-  const [ativos, todos] = await Promise.all([
-    prisma.ativo.findMany(),
+  const [ativos, todos, cotacoes] = await Promise.all([
+    prisma.ativo.findMany({
+      select: { id: true, ticker: true, nome: true, segmento: true, precoAtual: true },
+    }),
     prisma.lancamento.findMany({
-      where: { OR: [{ tipo: "COMPRA" }, { tipo: "VENDA" }, { tipo: "REINVESTIMENTO" }] },
+      where: { tipo: { in: ["COMPRA", "VENDA", "REINVESTIMENTO", "DIVIDENDO"] } },
+      select: {
+        id: true, tipo: true, data: true, ativoId: true,
+        quantidade: true, precoUnit: true, valorTotal: true,
+      },
       orderBy: { data: "asc" },
     }),
+    prisma.cotacao.findMany({ orderBy: { data: "asc" } }),
   ]);
-  const precoAtual = new Map(ativos.map((a) => [a.id, a.precoAtual ?? 0]));
 
-  const cotacoes = await prisma.cotacao.findMany({ orderBy: { data: "asc" } });
-  // index ticker → série
   const seriesCotacao = new Map<string, { data: Date; preco: number }[]>();
   for (const c of cotacoes) {
     if (!seriesCotacao.has(c.ticker)) seriesCotacao.set(c.ticker, []);
     seriesCotacao.get(c.ticker)!.push({ data: c.data, preco: c.preco });
   }
+
+  const lancsBase: LancamentoInput[] = todos.map((l) => ({
+    id: l.id,
+    tipo: l.tipo as LancamentoInput["tipo"],
+    data: l.data,
+    ativoId: l.ativoId,
+    quantidade: l.quantidade,
+    precoUnit: l.precoUnit,
+    valorTotal: l.valorTotal,
+  }));
 
   const resultado: { mes: string; investido: number; valor: number }[] = [];
 
@@ -38,40 +51,26 @@ export async function patrimonioHistorico(meses = 12): Promise<{ mes: string; in
     fim.setMonth(ini.getMonth() + m + 1);
     fim.setDate(0); fim.setHours(23, 59, 59, 999);
 
-    // cotas e investido por ativo até `fim`
-    const cotasPorAtivo = new Map<string, number>();
-    const investidoPorAtivo = new Map<string, number>();
-    for (const l of todos) {
-      if (l.data > fim) break;
-      const aid = l.ativoId;
-      if (!aid) continue;
-      const qtd = l.quantidade ?? 0;
-      if (l.tipo === "COMPRA" || l.tipo === "REINVESTIMENTO") {
-        cotasPorAtivo.set(aid, (cotasPorAtivo.get(aid) ?? 0) + qtd);
-        investidoPorAtivo.set(aid, (investidoPorAtivo.get(aid) ?? 0) + l.valorTotal);
-      } else if (l.tipo === "VENDA") {
-        cotasPorAtivo.set(aid, (cotasPorAtivo.get(aid) ?? 0) - qtd);
-        investidoPorAtivo.set(aid, (investidoPorAtivo.get(aid) ?? 0) - l.valorTotal);
+    // Preço de cada ativo no fim deste mês (fallback: precoAtual de hoje)
+    const ativosNoMes: AtivoInfo[] = ativos.map((a) => {
+      const serie = seriesCotacao.get(a.ticker) ?? [];
+      let precoMes: number | null = null;
+      for (const c of serie) {
+        if (c.data <= fim) precoMes = c.preco;
+        else break;
       }
-    }
+      return { ...a, precoAtual: precoMes ?? a.precoAtual };
+    });
 
-    let investido = 0, valor = 0;
-    for (const [aid, cotas] of cotasPorAtivo) {
-      if (cotas <= 0) continue;
-      const ativo = ativos.find((a) => a.id === aid);
-      if (!ativo) continue;
-      const inv = investidoPorAtivo.get(aid) ?? 0;
-      const cot = seriesCotacao.get(ativo.ticker) ?? [];
-      const precoNoMes = cot.findLast((c) => c.data <= fim)?.preco ?? precoAtual.get(aid) ?? 0;
-      investido += inv;
-      valor += precoNoMes * cotas;
-    }
+    const lancsAteMes = lancsBase.filter((l) => l.data <= fim);
+    const { consolidado } = recalcularPortfolio(ativosNoMes, lancsAteMes, fim);
 
     const d = new Date(ini); d.setMonth(ini.getMonth() + m);
     resultado.push({
       mes: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-      investido,
-      valor: valor > 0 ? valor : investido,
+      investido: consolidado.custoTotal,
+      // se não temos preço de mercado em nenhum ativo, mostra ao menos o custo
+      valor: consolidado.valorAtual > 0 ? consolidado.valorAtual : consolidado.custoTotal,
     });
   }
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { sincronizarDividendosDoAtivo } from "@/lib/domain/sync-dividendos";
 import { getCarteiraAtivaId } from "@/lib/carteira";
+import { validarVenda, type LancamentoInput } from "@/lib/domain/portfolio";
 import { log } from "@/lib/log";
 
 const schema = z.object({
@@ -38,6 +39,19 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = schema.parse(await req.json());
   const carteiraId = await getCarteiraAtivaId();
+
+  // Valida VENDA contra posição na data (impede cotas negativas silenciosas)
+  if (body.tipo === "VENDA" && body.ativoId && body.quantidade) {
+    const existentes = await prisma.lancamento.findMany({
+      where: { ativoId: body.ativoId, carteiraId },
+      select: { id: true, tipo: true, data: true, ativoId: true, quantidade: true, precoUnit: true, valorTotal: true },
+    });
+    const erro = validarVenda(existentes as LancamentoInput[], body.data, body.quantidade);
+    if (erro) {
+      return NextResponse.json({ erro }, { status: 422 });
+    }
+  }
+
   const novo = await prisma.lancamento.create({ data: { ...body, carteiraId } });
 
   // Em compra/reinvestimento: AGUARDA o import de dividendos (síncrono)
