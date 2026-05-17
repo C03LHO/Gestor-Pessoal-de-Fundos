@@ -1,10 +1,12 @@
 import { prisma } from "../prisma";
-import { buscarDividendos } from "../mercado/yahoo";
+import { buscarDividendosConfigurado } from "../mercado/dividendos";
 import { enviarParaTodos } from "../push";
+import { log } from "../log";
 
 /**
- * Importa todos os dividendos do Yahoo para um ativo (até `anos` atrás),
- * criando lançamentos apenas para datas em que o usuário JÁ POSSUÍA cotas.
+ * Importa todos os dividendos disponíveis para um ativo (até `anos` atrás),
+ * tentando Yahoo → Status Invest → Fundamentus → Brapi até obter dados.
+ * Cria lançamentos apenas para datas em que o usuário JÁ POSSUÍA cotas.
  * Não duplica datas já existentes.
  * Retorna quantos foram importados.
  */
@@ -15,8 +17,12 @@ export async function sincronizarDividendosDoAtivo(ativoId: string, anos = 10): 
   });
   if (!ativo) return 0;
 
-  const divs = await buscarDividendos(ativo.ticker, anos);
-  if (divs.length === 0) return 0;
+  const { divs, fonte } = await buscarDividendosConfigurado(ativo.ticker, anos);
+  if (divs.length === 0) {
+    log.warn("sync-divs.sem_dados", { ticker: ativo.ticker });
+    return 0;
+  }
+  log.info("sync-divs.fonte_usada", { ticker: ativo.ticker, fonte, total: divs.length });
 
   const existentes = new Set(
     ativo.lancamentos
