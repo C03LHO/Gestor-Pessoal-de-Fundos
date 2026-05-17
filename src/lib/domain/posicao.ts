@@ -1,4 +1,5 @@
 import { prisma } from "../prisma";
+import { somarLista } from "../money";
 
 export type Posicao = {
   ativoId: string;
@@ -69,9 +70,9 @@ export async function calcularPosicoes(carteiraId?: string): Promise<Posicao[]> 
 }
 
 export function resumoCarteira(posicoes: Posicao[]) {
-  const investido = posicoes.reduce((s, p) => s + p.investido, 0);
-  const valorAtual = posicoes.reduce((s, p) => s + p.valorAtual, 0);
-  const dividendos12m = posicoes.reduce((s, p) => s + p.dividendos12m, 0);
+  const investido     = somarLista(posicoes, (p) => p.investido);
+  const valorAtual    = somarLista(posicoes, (p) => p.valorAtual);
+  const dividendos12m = somarLista(posicoes, (p) => p.dividendos12m);
   return {
     investido,
     valorAtual,

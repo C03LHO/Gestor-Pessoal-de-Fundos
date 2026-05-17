@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { somarLista } from "@/lib/money";
 
 /**
  * Relatório anual de proventos recebidos. Retorna CSV pronto para
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
       ].join(";"),
     ),
   ];
-  const total = divs.reduce((s, d) => s + d.valorTotal, 0);
+  const total = somarLista(divs, (d) => d.valorTotal);
   linhas.push(["", "", "", "TOTAL", total.toFixed(2).replace(".", ",")].join(";"));
 
   return new NextResponse(linhas.join("\r\n"), {

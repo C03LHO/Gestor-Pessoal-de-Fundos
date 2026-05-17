@@ -1,4 +1,5 @@
 import { prisma } from "../prisma";
+import { somarLista } from "../money";
 
 export type AporteDoMes = {
   metaMinima: number;        // salário × percentual
@@ -36,8 +37,8 @@ export async function aporteDoMesAtual(carteiraId?: string): Promise<AporteDoMes
   const percentual = meta?.percentualAporte ?? 0.3;
   const metaMinima = salario * percentual;
 
-  const investidoNoMes = lancsMes.reduce((s, l) => s + l.valorTotal, 0);
-  const investidoMesAnterior = lancsMesAnt.reduce((s, l) => s + l.valorTotal, 0);
+  const investidoNoMes = somarLista(lancsMes, (l) => l.valorTotal);
+  const investidoMesAnterior = somarLista(lancsMesAnt, (l) => l.valorTotal);
 
   const hoje = new Date();
   const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();

@@ -4,6 +4,7 @@ import { previsaoProximoMes } from "@/lib/domain/previsao";
 import { getCarteiraAtivaId } from "@/lib/carteira";
 import { brl, dataBR, pct } from "@/lib/format";
 import { rentabilidadeIfix, rentabilidadeCdi } from "@/lib/mercado/benchmark";
+import { somarLista } from "@/lib/money";
 import { cn } from "@/lib/cn";
 
 export const dynamic = "force-dynamic";
@@ -32,8 +33,8 @@ export default async function ResumoPage() {
   ]);
 
   const resumoP = resumoCarteira(posicoes);
-  const totalDiv = divs.reduce((s, d) => s + d.valorTotal, 0);
-  const totalAportado = compras.reduce((s, c) => s + c.valorTotal, 0);
+  const totalDiv = somarLista(divs, (d) => d.valorTotal);
+  const totalAportado = somarLista(compras, (c) => c.valorTotal);
 
   const rentCarteira12m = resumoP.investido > 0
     ? (resumoP.valorAtual + resumoP.dividendos12m) / resumoP.investido - 1

@@ -1,4 +1,5 @@
 import { prisma } from "../prisma";
+import { somar, somarLista } from "../money";
 
 export type SerieMensal = { mes: string; valor: number }[];
 
@@ -34,15 +35,19 @@ export async function historicoAportes(meses = 12, carteiraId?: string): Promise
     d.setMonth(ini.getMonth() + i);
     buckets.set(chave(d), 0);
   }
+  // Acumula em centavos no bucket para evitar drift
+  const bucketsCent = new Map<string, number>();
+  for (const k of buckets.keys()) bucketsCent.set(k, 0);
   for (const l of lancs) {
     const k = chave(l.data);
-    if (buckets.has(k)) buckets.set(k, (buckets.get(k) ?? 0) + l.valorTotal);
+    if (bucketsCent.has(k)) bucketsCent.set(k, (bucketsCent.get(k) ?? 0) + Math.round(l.valorTotal * 100));
   }
+  for (const [k, v] of bucketsCent) buckets.set(k, v / 100);
 
   const serie: SerieMensal = Array.from(buckets.entries()).map(([mes, valor]) => ({ mes, valor }));
-  const total12 = serie.reduce((s, p) => s + p.valor, 0);
-  const ultimos6 = serie.slice(-6).reduce((s, p) => s + p.valor, 0);
-  const ultimos3 = serie.slice(-3).reduce((s, p) => s + p.valor, 0);
+  const total12  = somarLista(serie, (p) => p.valor);
+  const ultimos6 = somarLista(serie.slice(-6), (p) => p.valor);
+  const ultimos3 = somarLista(serie.slice(-3), (p) => p.valor);
 
   return {
     serie,

@@ -1,4 +1,5 @@
 import { prisma } from "../prisma";
+import { somarLista } from "../money";
 
 export type Insight = {
   id: string;
@@ -90,7 +91,7 @@ export async function gerarInsights(carteiraId?: string): Promise<Insight[]> {
   }
 
   // 4) Marcos de patrimônio em dividendos acumulado
-  const acumulado = divs.reduce((s, d) => s + d.valorTotal, 0);
+  const acumulado = somarLista(divs, (d) => d.valorTotal);
   const marcos = [1000, 5000, 10000, 25000, 50000, 100000];
   for (const m of marcos) {
     if (acumulado >= m && acumulado < m * 1.1) {
