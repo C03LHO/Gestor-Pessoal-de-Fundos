@@ -89,13 +89,15 @@ export async function buscarDividendosConfigurado(
     }),
   );
 
-  // Une por chave YYYY-MM-DD; mantém o primeiro valor encontrado, com prioridade
-  // pela ordem das fontes (yahoo > statusinvest > fundamentus > brapi).
+  // Une por chave YYYY-MM (mês), porque cada fonte usa convenção diferente:
+  // Yahoo retorna ex-date (~dia 01), Fundamentus retorna data de pagamento
+  // (~dia 15). É a MESMA distribuição — deduplica por mês.
+  // Mantém a primeira data encontrada na ordem das fontes (Yahoo primeiro).
   const mapa = new Map<string, DividendoYahoo>();
   for (const r of resultados) {
     if (r.status !== "fulfilled") continue;
     for (const d of r.value.divs) {
-      const key = d.data.toISOString().slice(0, 10);
+      const key = d.data.toISOString().slice(0, 7); // YYYY-MM
       if (!mapa.has(key)) mapa.set(key, d);
     }
   }

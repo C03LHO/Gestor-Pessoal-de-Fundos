@@ -33,16 +33,17 @@ export async function sincronizarDividendosDoAtivo(
   }
   log.info("sync-divs.fonte_usada", { ticker: ativo.ticker, fonte, total: divs.length, carteiraId: carteiraAlvo });
 
+  // Deduplica por mês (YYYY-MM): cada fonte usa data diferente para a mesma
+  // distribuição (ex-date vs data de pagamento), e o usuário só recebe uma vez.
   const existentes = new Set(
     ativo.lancamentos
       .filter((l) => l.tipo === "DIVIDENDO")
-      .map((l) => l.data.toISOString().slice(0, 10)),
+      .map((l) => l.data.toISOString().slice(0, 7)),
   );
 
-  // Pré-calcula tudo antes de tocar no banco; depois grava em transação única.
   const paraCriar: { data: Date; valor: number; valorPorCota: number; cotas: number; key: string }[] = [];
   for (const d of divs) {
-    const key = d.data.toISOString().slice(0, 10);
+    const key = d.data.toISOString().slice(0, 7);
     if (existentes.has(key)) continue;
     const cotas = cotasNoMomento(ativo.lancamentos, d.data);
     if (cotas <= 0) continue;
