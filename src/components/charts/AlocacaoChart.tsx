@@ -1,29 +1,47 @@
 "use client";
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { brl } from "@/lib/format";
-
-const CORES = ["#10b981", "#06b6d4", "#8b5cf6", "#f59e0b", "#ef4444", "#3b82f6", "#ec4899", "#84cc16"];
+import {
+  CHART_COLORS, TOOLTIP_CONTENT_STYLE, TOOLTIP_LABEL_STYLE,
+  TOOLTIP_ITEM_STYLE, LEGEND_WRAPPER_STYLE,
+} from "@/lib/chart-theme";
 
 export function AlocacaoChart({ data }: { data: { nome: string; valor: number }[] }) {
+  const total = data.reduce((s, d) => s + d.valor, 0);
+
   return (
-    <ResponsiveContainer width="100%" height={240}>
+    <ResponsiveContainer width="100%" height={260}>
       <PieChart>
         <Pie
           data={data}
           dataKey="valor"
           nameKey="nome"
           innerRadius={60}
-          outerRadius={95}
+          outerRadius={100}
           paddingAngle={2}
-          stroke="none"
+          stroke={CHART_COLORS.bg}
+          strokeWidth={2}
         >
           {data.map((_, i) => (
-            <Cell key={i} fill={CORES[i % CORES.length]} />
+            <Cell
+              key={i}
+              fill={CHART_COLORS.categorical[i % CHART_COLORS.categorical.length]}
+            />
           ))}
         </Pie>
         <Tooltip
-          contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 12 }}
-          formatter={(v: number, n) => [brl(v), n as string]}
+          contentStyle={TOOLTIP_CONTENT_STYLE}
+          labelStyle={TOOLTIP_LABEL_STYLE}
+          itemStyle={TOOLTIP_ITEM_STYLE}
+          formatter={(v: number, n) => {
+            const p = total > 0 ? (v / total) * 100 : 0;
+            return [`${brl(v)} · ${p.toFixed(1)}%`, n as string];
+          }}
+        />
+        <Legend
+          wrapperStyle={LEGEND_WRAPPER_STYLE}
+          iconType="circle"
+          iconSize={9}
         />
       </PieChart>
     </ResponsiveContainer>

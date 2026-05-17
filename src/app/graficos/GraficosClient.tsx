@@ -8,6 +8,11 @@ import {
 import { brl, pct } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { ChevronRight, Loader2, Maximize2, X, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import {
+  CHART_COLORS, GRID_PROPS, TOOLTIP_CONTENT_STYLE, TOOLTIP_LABEL_STYLE,
+  TOOLTIP_ITEM_STYLE, TOOLTIP_CURSOR, ACTIVE_DOT_PROPS, REF_DOT_HIGHLIGHT,
+  gradientStops,
+} from "@/lib/chart-theme";
 
 type Serie = {
   ticker: string;
@@ -175,58 +180,58 @@ function CardGrafico({
 
       {/* Gráfico com eixos compactos */}
       <div>
-        <ResponsiveContainer width="100%" height={160}>
+        <ResponsiveContainer width="100%" height={180}>
           <AreaChart data={s.pontos} margin={{ top: 8, right: 6, left: 6, bottom: 0 }}>
             <defs>
               <linearGradient id={`g-${item.ticker}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={cor} stopOpacity={0.5} />
-                <stop offset="100%" stopColor={cor} stopOpacity={0} />
+                {gradientStops(cor).map((sp, i) => <stop key={i} {...sp} />)}
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="2 4" stroke="#27272a" vertical={false} />
+            <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="t"
               type="number"
               domain={["dataMin", "dataMax"]}
               ticks={ticksX(s.pontos, 3)}
               tickFormatter={(t: number) => formatarData(t, rangeId, true)}
-              stroke="#52525b"
-              fontSize={9}
+              stroke={CHART_COLORS.textFaint}
+              fontSize={10}
               tickLine={false}
               axisLine={false}
-              tick={{ fill: "#71717a" }}
+              tick={{ fill: CHART_COLORS.textMuted }}
             />
             <YAxis
               domain={["dataMin - dataMin*0.005", "dataMax + dataMax*0.005"]}
               ticks={[stats.min, stats.max]}
               tickFormatter={(v: number) => brl(v).replace("R$ ", "")}
-              stroke="#52525b"
-              fontSize={9}
+              stroke={CHART_COLORS.textFaint}
+              fontSize={10}
               tickLine={false}
               axisLine={false}
               orientation="right"
               width={50}
-              tick={{ fill: "#71717a" }}
+              tick={{ fill: CHART_COLORS.textMuted }}
             />
             <Tooltip
-              contentStyle={{
-                background: "#18181b", border: "1px solid #27272a",
-                borderRadius: 8, fontSize: 11, padding: "6px 10px",
-              }}
-              labelStyle={{ color: "#a1a1aa", fontSize: 10 }}
+              contentStyle={TOOLTIP_CONTENT_STYLE}
+              labelStyle={TOOLTIP_LABEL_STYLE}
+              itemStyle={TOOLTIP_ITEM_STYLE}
               labelFormatter={(t: number) => formatarData(t, rangeId)}
               formatter={(v: number) => [brl(v), "Preço"]}
-              cursor={{ stroke: cor, strokeDasharray: "3 3", strokeOpacity: 0.5 }}
+              cursor={{ ...TOOLTIP_CURSOR, stroke: cor, strokeOpacity: 0.6 }}
             />
             <Area
-              type="monotone" dataKey="p" stroke={cor} strokeWidth={2}
-              fill={`url(#g-${item.ticker})`} isAnimationActive={false}
+              type="monotone" dataKey="p"
+              stroke={cor} strokeWidth={2.5}
+              fill={`url(#g-${item.ticker})`}
+              activeDot={{ ...ACTIVE_DOT_PROPS, fill: cor }}
+              isAnimationActive={false}
             />
-            <ReferenceLine y={s.precoAtual} stroke={cor} strokeDasharray="2 2" strokeOpacity={0.5} />
+            <ReferenceLine y={s.precoAtual} stroke={cor} strokeDasharray="2 4" strokeOpacity={0.55} strokeWidth={1.2} />
             <ReferenceDot x={stats.tMax} y={stats.max}
-                          r={3} fill="#10b981" stroke="#fff" strokeWidth={1} />
+                          r={4} fill={CHART_COLORS.primary} stroke="#fff" strokeWidth={1.5} />
             <ReferenceDot x={stats.tMin} y={stats.min}
-                          r={3} fill="#f43f5e" stroke="#fff" strokeWidth={1} />
+                          r={4} fill={CHART_COLORS.danger} stroke="#fff" strokeWidth={1.5} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -327,39 +332,80 @@ function ZoomModal({
       {/* Gráfico grande */}
       <div className="flex-1 p-4 md:p-6 overflow-hidden">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={s.pontos}>
+          <AreaChart data={s.pontos} margin={{ top: 10, right: 24, left: 0, bottom: 10 }}>
             <defs>
               <linearGradient id={`gz-${item.ticker}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={cor} stopOpacity={0.5} />
-                <stop offset="100%" stopColor={cor} stopOpacity={0} />
+                {gradientStops(cor).map((sp, i) => <stop key={i} {...sp} />)}
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-            <XAxis dataKey="t" stroke="#52525b" fontSize={10}
-                   tickFormatter={(t: number) => formatarData(t, rangeAtual, true)} />
-            <YAxis stroke="#52525b" fontSize={10} width={70}
-                   domain={["dataMin", "dataMax"]}
-                   tickFormatter={(v: number) => brl(v).replace("R$ ", "R$")} />
+            <CartesianGrid {...GRID_PROPS} />
+            <XAxis
+              dataKey="t"
+              type="number"
+              domain={["dataMin", "dataMax"]}
+              stroke={CHART_COLORS.textFaint}
+              fontSize={11}
+              tickLine={false}
+              axisLine={false}
+              tick={{ fill: CHART_COLORS.textMuted }}
+              tickFormatter={(t: number) => formatarData(t, rangeAtual, true)}
+              minTickGap={32}
+            />
+            <YAxis
+              stroke={CHART_COLORS.textFaint}
+              fontSize={11}
+              tickLine={false}
+              axisLine={false}
+              tick={{ fill: CHART_COLORS.textMuted }}
+              width={76}
+              domain={["dataMin - dataMin*0.01", "dataMax + dataMax*0.01"]}
+              tickFormatter={(v: number) => brl(v).replace("R$ ", "R$")}
+            />
             <Tooltip
-              contentStyle={{
-                background: "#18181b", border: "1px solid #27272a",
-                borderRadius: 10, fontSize: 12, padding: "8px 12px",
-              }}
-              labelStyle={{ color: "#a1a1aa" }}
+              contentStyle={TOOLTIP_CONTENT_STYLE}
+              labelStyle={TOOLTIP_LABEL_STYLE}
+              itemStyle={TOOLTIP_ITEM_STYLE}
               labelFormatter={(t: number) => formatarData(t, rangeAtual)}
               formatter={(v: number) => [brl(v), "Preço"]}
-              cursor={{ stroke: cor, strokeDasharray: "3 3" }}
+              cursor={{ ...TOOLTIP_CURSOR, stroke: cor, strokeOpacity: 0.7 }}
             />
-            <ReferenceLine y={s.precoAtual} stroke={cor} strokeDasharray="4 4" strokeOpacity={0.5}
-                           label={{ value: "Atual", fill: cor, fontSize: 10, position: "right" }} />
-            <ReferenceLine y={stats.max} stroke="#10b981" strokeDasharray="2 4" strokeOpacity={0.4}
-                           label={{ value: `Máx ${brl(stats.max)}`, fill: "#10b981", fontSize: 10, position: "right" }} />
-            <ReferenceLine y={stats.min} stroke="#f43f5e" strokeDasharray="2 4" strokeOpacity={0.4}
-                           label={{ value: `Mín ${brl(stats.min)}`, fill: "#f43f5e", fontSize: 10, position: "right" }} />
-            <Area type="monotone" dataKey="p" stroke={cor} strokeWidth={2.5}
-                  fill={`url(#gz-${item.ticker})`} isAnimationActive={false} />
-            <ReferenceDot x={stats.tMax} y={stats.max} r={5} fill="#10b981" stroke="#fff" strokeWidth={1.5} />
-            <ReferenceDot x={stats.tMin} y={stats.min} r={5} fill="#f43f5e" stroke="#fff" strokeWidth={1.5} />
+            <ReferenceLine
+              y={s.precoAtual}
+              stroke={cor} strokeDasharray="4 4" strokeOpacity={0.7} strokeWidth={1.3}
+              label={{ value: "Atual", fill: cor, fontSize: 11, position: "right", fontWeight: 600 }}
+            />
+            <ReferenceLine
+              y={stats.max}
+              stroke={CHART_COLORS.primary} strokeDasharray="2 5" strokeOpacity={0.5} strokeWidth={1.2}
+              label={{
+                value: `Máx ${brl(stats.max)}`,
+                fill: CHART_COLORS.primary, fontSize: 10, position: "right",
+              }}
+            />
+            <ReferenceLine
+              y={stats.min}
+              stroke={CHART_COLORS.danger} strokeDasharray="2 5" strokeOpacity={0.5} strokeWidth={1.2}
+              label={{
+                value: `Mín ${brl(stats.min)}`,
+                fill: CHART_COLORS.danger, fontSize: 10, position: "right",
+              }}
+            />
+            <Area
+              type="monotone" dataKey="p"
+              stroke={cor} strokeWidth={3}
+              fill={`url(#gz-${item.ticker})`}
+              activeDot={{ ...ACTIVE_DOT_PROPS, r: 6, fill: cor }}
+              isAnimationActive
+              animationDuration={400}
+            />
+            <ReferenceDot
+              x={stats.tMax} y={stats.max}
+              fill={CHART_COLORS.primary} {...REF_DOT_HIGHLIGHT}
+            />
+            <ReferenceDot
+              x={stats.tMin} y={stats.min}
+              fill={CHART_COLORS.danger} {...REF_DOT_HIGHLIGHT}
+            />
           </AreaChart>
         </ResponsiveContainer>
       </div>

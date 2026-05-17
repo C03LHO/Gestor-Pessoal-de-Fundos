@@ -4,6 +4,11 @@ import {
   CartesianGrid, Legend, ReferenceDot,
 } from "recharts";
 import { brl, pct } from "@/lib/format";
+import {
+  CHART_COLORS, AXIS_STYLE, AXIS_LABEL_TICK, GRID_PROPS,
+  TOOLTIP_CONTENT_STYLE, LINE_PROPS, ACTIVE_DOT_PROPS, LEGEND_WRAPPER_STYLE,
+  REF_DOT_HIGHLIGHT, gradientStops,
+} from "@/lib/chart-theme";
 import type { PontoPatrimonio } from "@/lib/domain/dashboard-extras";
 
 function CustomTooltip({ active, payload, label }: any) {
@@ -11,30 +16,44 @@ function CustomTooltip({ active, payload, label }: any) {
   const p = payload[0].payload as PontoPatrimonio;
   const diff = p.valor - p.investido;
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs space-y-0.5 shadow-xl">
-      <div className="font-medium text-zinc-200 mb-1">{label}</div>
-      <div className="flex justify-between gap-3">
-        <span className="text-zinc-500">Mercado</span>
-        <span className="tabular-nums text-emerald-400">{brl(p.valor)}</span>
+    <div style={TOOLTIP_CONTENT_STYLE} className="space-y-0.5 min-w-[180px]">
+      <div className="font-semibold mb-1" style={{ color: CHART_COLORS.text, fontSize: 13 }}>
+        {label}
       </div>
-      <div className="flex justify-between gap-3">
-        <span className="text-zinc-500">Investido</span>
-        <span className="tabular-nums text-zinc-300">{brl(p.investido)}</span>
-      </div>
-      <div className="flex justify-between gap-3 border-t border-zinc-800 pt-1 mt-1">
-        <span className="text-zinc-500">Diferença</span>
-        <span className={`tabular-nums font-medium ${diff >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-          {diff >= 0 ? "+" : ""}{brl(diff)}
-        </span>
-      </div>
-      <div className="flex justify-between gap-3">
-        <span className="text-zinc-500">Rentabilidade</span>
-        <span className={`tabular-nums font-medium ${p.rentabilidade >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-          {p.rentabilidade >= 0 ? "+" : ""}{pct(p.rentabilidade)}
-        </span>
-      </div>
-      {p.ehMaiorPatrimonio && <div className="text-[10px] text-emerald-300 mt-1">★ Maior patrimônio do período</div>}
-      {p.ehMaiorQueda && <div className="text-[10px] text-rose-300 mt-1">▼ Maior queda mensal do período</div>}
+      <Row label="Mercado"   valor={brl(p.valor)}     cor={CHART_COLORS.primary} bold />
+      <Row label="Investido" valor={brl(p.investido)} cor={CHART_COLORS.textMuted} />
+      <hr className="border-zinc-800 my-1" />
+      <Row
+        label="Diferença"
+        valor={`${diff >= 0 ? "+" : ""}${brl(diff)}`}
+        cor={diff >= 0 ? CHART_COLORS.primary : CHART_COLORS.danger}
+        bold
+      />
+      <Row
+        label="Rentabilidade"
+        valor={`${p.rentabilidade >= 0 ? "+" : ""}${pct(p.rentabilidade)}`}
+        cor={p.rentabilidade >= 0 ? CHART_COLORS.primary : CHART_COLORS.danger}
+      />
+      {p.ehMaiorPatrimonio && (
+        <div className="text-[10px] mt-1" style={{ color: CHART_COLORS.primary }}>★ Maior patrimônio</div>
+      )}
+      {p.ehMaiorQueda && (
+        <div className="text-[10px] mt-1" style={{ color: CHART_COLORS.danger }}>▼ Maior queda mensal</div>
+      )}
+    </div>
+  );
+}
+
+function Row({ label, valor, cor, bold }: { label: string; valor: string; cor?: string; bold?: boolean }) {
+  return (
+    <div className="flex justify-between gap-3 text-xs">
+      <span style={{ color: CHART_COLORS.textMuted }}>{label}</span>
+      <span
+        className="tabular-nums"
+        style={{ color: cor ?? CHART_COLORS.text, fontWeight: bold ? 600 : 500 }}
+      >
+        {valor}
+      </span>
     </div>
   );
 }
@@ -47,62 +66,62 @@ export function EvolucaoPatrimonioChart({
 
   return (
     <ResponsiveContainer width="100%" height={altura ?? 260}>
-      <AreaChart data={data} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+      <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="evol-valor" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+            {gradientStops(CHART_COLORS.primary).map((s, i) => (
+              <stop key={i} {...s} />
+            ))}
           </linearGradient>
           <linearGradient id="evol-investido" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#71717a" stopOpacity={0.15} />
-            <stop offset="95%" stopColor="#71717a" stopOpacity={0} />
+            {gradientStops(CHART_COLORS.neutral).map((s, i) => (
+              <stop key={i} {...s} />
+            ))}
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+        <CartesianGrid {...GRID_PROPS} />
         <XAxis
           dataKey="rotulo"
-          stroke="#52525b"
-          fontSize={10}
-          tickLine={false}
-          axisLine={false}
+          {...AXIS_STYLE}
+          tick={AXIS_LABEL_TICK}
           interval="preserveStartEnd"
-          minTickGap={20}
+          minTickGap={24}
         />
         <YAxis
-          stroke="#52525b"
-          fontSize={10}
-          tickLine={false}
-          axisLine={false}
-          width={64}
+          {...AXIS_STYLE}
+          tick={AXIS_LABEL_TICK}
+          width={72}
           tickFormatter={(v) => brl(v).replace("R$ ", "R$")}
         />
         <Tooltip content={<CustomTooltip />} />
-        <Legend wrapperStyle={{ fontSize: 11 }} />
+        <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} iconType="circle" iconSize={9} />
         <Area
           type="monotone"
           dataKey="investido"
           name="Investido"
-          stroke="#71717a"
-          strokeWidth={1.5}
+          stroke={CHART_COLORS.neutral}
           fill="url(#evol-investido)"
           strokeDasharray="4 4"
+          strokeWidth={1.8}
+          activeDot={{ ...ACTIVE_DOT_PROPS, r: 4, fill: CHART_COLORS.neutral }}
+          isAnimationActive
+          animationDuration={400}
         />
         <Area
           type="monotone"
           dataKey="valor"
           name="Mercado"
-          stroke="#10b981"
-          strokeWidth={2}
+          stroke={CHART_COLORS.primary}
           fill="url(#evol-valor)"
+          activeDot={{ ...ACTIVE_DOT_PROPS, fill: CHART_COLORS.primary }}
+          {...LINE_PROPS}
         />
         {maiorPatr && (
           <ReferenceDot
             x={maiorPatr.rotulo}
             y={maiorPatr.valor}
-            r={5}
-            fill="#10b981"
-            stroke="#fff"
-            strokeWidth={2}
+            fill={CHART_COLORS.primary}
+            {...REF_DOT_HIGHLIGHT}
             ifOverflow="extendDomain"
           />
         )}
@@ -110,10 +129,10 @@ export function EvolucaoPatrimonioChart({
           <ReferenceDot
             x={maiorQueda.rotulo}
             y={maiorQueda.valor}
-            r={4}
-            fill="#f43f5e"
+            fill={CHART_COLORS.danger}
+            r={5}
             stroke="#fff"
-            strokeWidth={1.5}
+            strokeWidth={1.8}
             ifOverflow="extendDomain"
           />
         )}
