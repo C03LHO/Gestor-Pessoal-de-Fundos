@@ -8,7 +8,6 @@ const headersSeguranca = [
 ];
 
 const nextConfig: NextConfig = {
-  ...(process.env.DOCKER_BUILD === "1" ? { output: "standalone" as const } : {}),
   experimental: {},
   async headers() {
     return [{ source: "/:path*", headers: headersSeguranca }];
