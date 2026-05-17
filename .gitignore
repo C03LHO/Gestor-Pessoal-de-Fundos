@@ -12,6 +12,8 @@ out
 # Banco e dados locais
 data.db
 data.db-journal
+data.db-wal
+data.db-shm
 backups/
 *.bkp
 
