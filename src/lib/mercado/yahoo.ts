@@ -37,8 +37,8 @@ export async function buscarCotacao(ticker: string): Promise<CotacaoYahoo | null
 
 export async function buscarDividendos(ticker: string, anos = 5): Promise<DividendoYahoo[]> {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sufixar(ticker)}?interval=1mo&range=${anos}y&events=div`;
-  const r = await fetchTimeout(url, { headers: { "User-Agent": UA } });
-  if (!r.ok) return [];
+  const r = await fetchTimeout(url, { headers: { "User-Agent": UA } }, 5000);
+  if (!r.ok) throw new Error(`Yahoo HTTP ${r.status}`);
   const j: any = await r.json();
   const divs = j?.chart?.result?.[0]?.events?.dividends;
   if (!divs) return [];

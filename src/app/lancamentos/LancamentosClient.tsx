@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, X, CheckSquare, Square, Pencil } from "lucide-react";
+import { Plus, Trash2, X, CheckSquare, Square, Pencil, RefreshCw } from "lucide-react";
 import { brl, dataBR } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { SwipeCard } from "@/components/ux/SwipeCard";
@@ -48,6 +48,39 @@ export function LancamentosClient({ lancamentos, ativos }: { lancamentos: Lanc[]
   const [confirmar, setConfirmar] = useState<"unico" | "lote" | null>(null);
   const [alvoUnico, setAlvoUnico] = useState<Lanc | null>(null);
   const [deletando, setDeletando] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
+  const [resultadoSync, setResultadoSync] = useState<{
+    importados: number;
+    detalhes: { ticker: string; importados: number; erro?: string }[] | null;
+  } | null>(null);
+
+  async function atualizarDividendos() {
+    setSincronizando(true);
+    setResultadoSync(null);
+    try {
+      const r = await fetch("/api/mercado/importar-dividendos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anos: 10 }),
+      });
+      if (!r.ok) {
+        toast("erro", `Falha ao atualizar dividendos (${r.status})`);
+        return;
+      }
+      const j = await r.json();
+      setResultadoSync(j);
+      if (j.importados > 0) {
+        toast("sucesso", `${j.importados} novos dividendos importados`);
+        router.refresh();
+      } else {
+        toast("info", "Nenhum dividendo novo encontrado");
+      }
+    } catch (e: any) {
+      toast("erro", e?.message ?? "Erro ao atualizar");
+    } finally {
+      setSincronizando(false);
+    }
+  }
 
   const filtrados = useMemo(() => {
     let l = lancamentos;
@@ -111,10 +144,67 @@ export function LancamentosClient({ lancamentos, ativos }: { lancamentos: Lanc[]
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Lançamentos</h1>
           <p className="text-xs md:text-sm text-zinc-400 mt-0.5">{lancamentos.length} registros</p>
         </div>
-        <button className="btn hidden md:inline-flex" onClick={() => setEditor({ modo: "novo" })}>
-          <Plus size={16} /> Novo
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="btn-ghost border border-zinc-800 inline-flex items-center gap-2 text-xs md:text-sm"
+            onClick={atualizarDividendos}
+            disabled={sincronizando}
+            title="Consulta todas as fontes e importa dividendos novos"
+          >
+            <RefreshCw size={14} className={sincronizando ? "animate-spin" : ""} />
+            {sincronizando ? "Buscando..." : "Atualizar dividendos"}
+          </button>
+          <button className="btn hidden md:inline-flex" onClick={() => setEditor({ modo: "novo" })}>
+            <Plus size={16} /> Novo
+          </button>
+        </div>
       </header>
+
+      {resultadoSync && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-sm">
+              {resultadoSync.importados > 0
+                ? `${resultadoSync.importados} dividendos novos importados`
+                : "Nenhum dividendo novo encontrado"}
+            </h3>
+            <button
+              className="text-zinc-400 hover:text-zinc-100"
+              onClick={() => setResultadoSync(null)}
+              aria-label="Fechar"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          {resultadoSync.detalhes && resultadoSync.detalhes.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              {resultadoSync.detalhes.map((d) => (
+                <div
+                  key={d.ticker}
+                  className={cn(
+                    "rounded-md px-2 py-1.5 border",
+                    d.erro
+                      ? "border-rose-900/40 bg-rose-950/20 text-rose-300"
+                      : d.importados > 0
+                        ? "border-emerald-900/40 bg-emerald-950/20 text-emerald-300"
+                        : "border-zinc-800 text-zinc-500",
+                  )}
+                  title={d.erro ?? `${d.importados} novos`}
+                >
+                  <div className="font-medium">{d.ticker}</div>
+                  <div className="text-[10px] tabular-nums">
+                    {d.erro ? "erro" : `+${d.importados}`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-[10px] text-zinc-500 mt-3">
+            Consulta Yahoo, Status Invest e Fundamentus em paralelo. Importa apenas datas
+            posteriores às suas compras.
+          </p>
+        </div>
+      )}
 
       {/* FAB no mobile */}
       <button className="fab" onClick={() => setEditor({ modo: "novo" })} aria-label="Novo lançamento">

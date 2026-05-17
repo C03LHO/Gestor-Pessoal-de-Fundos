@@ -37,7 +37,7 @@ export async function buscarDividendosStatusInvest(ticker: string): Promise<Divi
       "X-Requested-With": "XMLHttpRequest",
       "Referer": `https://statusinvest.com.br/fundos-imobiliarios/${slugDe(t)}`,
     },
-  });
+  }, 5000);
   if (!r.ok) throw new Error(`Status Invest HTTP ${r.status}`);
   const j: any = await r.json().catch(() => null);
   if (!j) throw new Error("Status Invest retornou payload inválido");

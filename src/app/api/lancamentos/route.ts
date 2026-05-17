@@ -15,7 +15,7 @@ const schema = z.object({
   observacao: z.string().max(500).nullable().optional(),
 });
 
-const SYNC_TIMEOUT_MS = 8000;
+const SYNC_TIMEOUT_MS = 6000;
 function comTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
   return Promise.race([
     p,

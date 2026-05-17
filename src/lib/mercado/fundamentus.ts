@@ -38,7 +38,7 @@ export async function buscarDividendosFundamentus(ticker: string): Promise<Divid
   const url = `https://www.fundamentus.com.br/fii_proventos.php?papel=${t}&tipo=2`;
   const r = await fetchTimeout(url, {
     headers: { "User-Agent": UA, "Accept-Language": "pt-BR" },
-  });
+  }, 5000);
   if (!r.ok) throw new Error(`Fundamentus HTTP ${r.status}`);
   const html = decodificarHtml(await r.text());
   if (!html.includes("Proventos")) throw new Error("Fundamentus retornou página inesperada");

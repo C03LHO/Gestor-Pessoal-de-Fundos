@@ -19,14 +19,23 @@ type Fonte = "yahoo" | "statusinvest" | "fundamentus" | "brapi";
 
 export type ResultadoDividendos = {
   divs: DividendoYahoo[];
-  fonte: Fonte | "nenhuma";
+  fonte: Fonte | "uniao" | "nenhuma";
+  trace?: TraceFonte[];
+};
+
+export type TraceFonte = {
+  fonte: Fonte;
+  ok: boolean;
+  count: number;
+  erro?: string;
+  ms: number;
 };
 
 async function buscarDividendosBrapi(ticker: string, token: string): Promise<DividendoYahoo[]> {
   try {
     const t = ticker.toUpperCase().replace(/\.SA$/, "");
     const url = `https://brapi.dev/api/quote/${t}?range=5y&interval=1mo&modules=dividends&token=${encodeURIComponent(token)}`;
-    const r = await fetchTimeout(url);
+    const r = await fetchTimeout(url, {}, 5000);
     if (!r.ok) return [];
     const j: any = await r.json();
     const cashDivs = j?.results?.[0]?.dividendsData?.cashDividends ?? [];
@@ -44,6 +53,11 @@ async function buscarDividendosBrapi(ticker: string, token: string): Promise<Div
   }
 }
 
+/**
+ * Consulta TODAS as fontes em paralelo e une o resultado (dedup por dia).
+ * Assim, mesmo se uma fonte trava ou está bloqueada no container, as outras
+ * ainda contribuem dentro do orçamento de tempo do caller.
+ */
 export async function buscarDividendosConfigurado(
   ticker: string,
   anos = 10,
@@ -59,18 +73,43 @@ export async function buscarDividendosConfigurado(
     tentativas.push({ nome: "brapi", fn: () => buscarDividendosBrapi(ticker, cfg.brapiToken!) });
   }
 
-  for (const t of tentativas) {
-    try {
-      const divs = await t.fn();
-      if (divs.length > 0) {
-        log.info("dividendos.fonte_ok", { ticker, fonte: t.nome, count: divs.length });
-        return { divs, fonte: t.nome };
+  const trace: TraceFonte[] = [];
+  const resultados = await Promise.allSettled(
+    tentativas.map(async (t) => {
+      const t0 = Date.now();
+      try {
+        const divs = await t.fn();
+        trace.push({ fonte: t.nome, ok: true, count: divs.length, ms: Date.now() - t0 });
+        return { fonte: t.nome, divs };
+      } catch (e: any) {
+        trace.push({ fonte: t.nome, ok: false, count: 0, erro: e?.message ?? String(e), ms: Date.now() - t0 });
+        log.warn("dividendos.fonte_falhou", { ticker, fonte: t.nome, erro: e?.message });
+        return { fonte: t.nome, divs: [] as DividendoYahoo[] };
       }
-    } catch (e: any) {
-      log.warn("dividendos.fonte_falhou", { ticker, fonte: t.nome, erro: e?.message });
+    }),
+  );
+
+  // Une por chave YYYY-MM-DD; mantém o primeiro valor encontrado, com prioridade
+  // pela ordem das fontes (yahoo > statusinvest > fundamentus > brapi).
+  const mapa = new Map<string, DividendoYahoo>();
+  for (const r of resultados) {
+    if (r.status !== "fulfilled") continue;
+    for (const d of r.value.divs) {
+      const key = d.data.toISOString().slice(0, 10);
+      if (!mapa.has(key)) mapa.set(key, d);
     }
   }
 
-  log.warn("dividendos.nenhuma_fonte", { ticker });
-  return { divs: [], fonte: "nenhuma" };
+  const divs = [...mapa.values()].sort((a, b) => +a.data - +b.data);
+  const fontesOk = trace.filter((t) => t.ok && t.count > 0).map((t) => t.fonte);
+
+  if (divs.length === 0) {
+    log.warn("dividendos.nenhuma_fonte", { ticker, trace });
+    return { divs: [], fonte: "nenhuma", trace };
+  }
+
+  const fonte: Fonte | "uniao" =
+    fontesOk.length === 1 ? (fontesOk[0] as Fonte) : "uniao";
+  log.info("dividendos.uniao_ok", { ticker, fonte, count: divs.length, fontesOk });
+  return { divs, fonte, trace };
 }
