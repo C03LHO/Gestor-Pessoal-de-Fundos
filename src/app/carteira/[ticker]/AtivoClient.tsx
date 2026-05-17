@@ -1,12 +1,15 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, Download, RefreshCw } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import { brl, dataBR, pct } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { useToast } from "@/components/ux/Toast";
 
 type Ativo = {
-  ticker: string; nome: string | null; segmento: string | null;
+  id: string; ticker: string; nome: string | null; segmento: string | null;
   precoAtual: number | null;
   lancamentos: { id: string; tipo: string; data: string; quantidade: number | null; precoUnit: number | null; valorTotal: number; observacao: string | null }[];
 };
@@ -23,6 +26,31 @@ const corTipo: Record<string, string> = {
 
 export function AtivoClient({ ativo, cotacoes, dividendosYahoo }:
   { ativo: Ativo; cotacoes: Cotacao[]; dividendosYahoo: DividendoYahoo[] }) {
+
+  const router = useRouter();
+  const toast = useToast();
+  const [importando, setImportando] = useState(false);
+
+  async function importarDividendos() {
+    setImportando(true);
+    try {
+      const r = await fetch("/api/mercado/importar-dividendos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ativoId: ativo.id, anos: 10 }),
+      });
+      if (!r.ok) { toast("erro", "Falha: " + (await r.text()).slice(0, 100)); return; }
+      const j = await r.json();
+      if (j.importados > 0) {
+        toast("sucesso", `${j.importados} dividendos importados de ${ativo.ticker}`);
+        router.refresh();
+      } else {
+        toast("info", "Nenhum dividendo novo. Tudo já está sincronizado.");
+      }
+    } catch (e: any) {
+      toast("erro", "Erro: " + (e?.message ?? "desconhecido"));
+    } finally { setImportando(false); }
+  }
 
   let cotas = 0, investido = 0, dividendos = 0;
   for (const l of ativo.lancamentos) {
@@ -47,13 +75,29 @@ export function AtivoClient({ ativo, cotacoes, dividendosYahoo }:
         <ChevronLeft size={16} /> Carteira
       </Link>
 
-      <header>
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">{ativo.ticker}</h1>
-        {ativo.nome && <p className="text-xs md:text-sm text-zinc-400 mt-0.5 truncate">{ativo.nome}</p>}
-        {ativo.segmento && (
-          <span className="inline-block mt-2 text-[10px] uppercase tracking-wider text-zinc-400 bg-zinc-800/60 px-1.5 py-0.5 rounded">
-            {ativo.segmento}
-          </span>
+      <header className="flex justify-between items-start gap-3 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">{ativo.ticker}</h1>
+          {ativo.nome && <p className="text-xs md:text-sm text-zinc-400 mt-0.5 truncate">{ativo.nome}</p>}
+          {ativo.segmento && (
+            <span className="inline-block mt-2 text-[10px] uppercase tracking-wider text-zinc-400 bg-zinc-800/60 px-1.5 py-0.5 rounded">
+              {ativo.segmento}
+            </span>
+          )}
+        </div>
+        {cotas > 0 && (
+          <button
+            onClick={importarDividendos}
+            disabled={importando}
+            className="btn-ghost border border-zinc-800 text-xs whitespace-nowrap"
+            title="Busca no Yahoo e cria os dividendos faltantes (apenas datas em que você tinha cotas)"
+          >
+            {importando ? (
+              <><RefreshCw size={12} className="animate-spin" /> Importando...</>
+            ) : (
+              <><Download size={12} /> Importar dividendos</>
+            )}
+          </button>
         )}
       </header>
 
