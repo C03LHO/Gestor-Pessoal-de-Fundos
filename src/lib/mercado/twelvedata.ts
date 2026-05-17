@@ -3,6 +3,7 @@
  * Útil como segunda opção redundante ao Yahoo/Brapi.
  */
 import type { CotacaoYahoo } from "./yahoo";
+import { fetchTimeout } from "./fetch-timeout";
 
 export async function buscarCotacaoTwelveData(
   ticker: string, apiKey: string,
@@ -13,7 +14,7 @@ export async function buscarCotacaoTwelveData(
   for (const s of variantes) {
     const url = `https://api.twelvedata.com/price?symbol=${encodeURIComponent(s)}&apikey=${apiKey}`;
     try {
-      const r = await fetch(url, { cache: "no-store" });
+      const r = await fetchTimeout(url);
       if (!r.ok) continue;
       const j: any = await r.json();
       const preco = parseFloat(j?.price);

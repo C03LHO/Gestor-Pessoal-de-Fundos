@@ -9,11 +9,19 @@ const schema = z.object({
   tipo: z.enum(["COMPRA", "VENDA", "APORTE", "DIVIDENDO", "REINVESTIMENTO"]),
   data: z.coerce.date(),
   ativoId: z.string().nullable().optional(),
-  quantidade: z.number().nullable().optional(),
-  precoUnit: z.number().nullable().optional(),
-  valorTotal: z.number(),
-  observacao: z.string().nullable().optional(),
+  quantidade: z.number().nonnegative().nullable().optional(),
+  precoUnit: z.number().nonnegative().nullable().optional(),
+  valorTotal: z.number().nonnegative(),
+  observacao: z.string().max(500).nullable().optional(),
 });
+
+const SYNC_TIMEOUT_MS = 8000;
+function comTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
 
 export async function GET(req: NextRequest) {
   const tipo = req.nextUrl.searchParams.get("tipo");
@@ -37,17 +45,26 @@ export async function POST(req: NextRequest) {
   // dos meses em que ele tinha cotas.
   let dividendosImportados = 0;
   let sincErro: string | null = null;
+  let sincTimeout = false;
   if (body.ativoId && (body.tipo === "COMPRA" || body.tipo === "REINVESTIMENTO")) {
+    const ativoId = body.ativoId;
     try {
-      dividendosImportados = await sincronizarDividendosDoAtivo(body.ativoId, 10);
-      log.info("lancamento.dividendos_importados", {
-        ativoId: body.ativoId, count: dividendosImportados,
-      });
+      // Hard timeout: se o sync demorar mais que SYNC_TIMEOUT_MS, retorna 201 com sincTimeout=true.
+      // O sync continua rodando em background (fire-and-forget) e o resultado vai aparecer
+      // na próxima vez que o usuário recarregar a tela.
+      const promise = sincronizarDividendosDoAtivo(ativoId, 10);
+      dividendosImportados = await comTimeout(promise, SYNC_TIMEOUT_MS, -1);
+      if (dividendosImportados === -1) {
+        sincTimeout = true;
+        dividendosImportados = 0;
+        promise.catch((e) => log.warn("sync-divs.background_fail", { erro: e?.message }));
+      }
+      log.info("lancamento.dividendos_importados", { ativoId, count: dividendosImportados, sincTimeout });
     } catch (e: any) {
       sincErro = e?.message ?? "falha desconhecida";
-      log.error("lancamento.sync_divs_falhou", { ativoId: body.ativoId, erro: sincErro });
+      log.error("lancamento.sync_divs_falhou", { ativoId, erro: sincErro });
     }
   }
 
-  return NextResponse.json({ ...novo, dividendosImportados, sincErro }, { status: 201 });
+  return NextResponse.json({ ...novo, dividendosImportados, sincErro, sincTimeout }, { status: 201 });
 }

@@ -3,6 +3,8 @@
  * últimos N meses. Devolve percentual no período.
  */
 
+import { fetchTimeout } from "./fetch-timeout";
+
 const UA = "Mozilla/5.0 (compatible; FundosApp/1.0)";
 
 export async function rentabilidadeIfix(meses = 12): Promise<number | null> {
@@ -11,7 +13,7 @@ export async function rentabilidadeIfix(meses = 12): Promise<number | null> {
   for (const t of tickers) {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1mo&range=${meses + 1}mo`;
     try {
-      const r = await fetch(url, { headers: { "User-Agent": UA }, cache: "no-store" });
+      const r = await fetchTimeout(url, { headers: { "User-Agent": UA } });
       if (!r.ok) continue;
       const j: any = await r.json();
       const closes: (number | null)[] = j?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
@@ -30,7 +32,7 @@ export async function rentabilidadeCdi(meses = 12): Promise<number | null> {
   const fmt = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
   const url = `https://api.bcb.gov.br/dados/serie/bcdata.sgs.12/dados?formato=json&dataInicial=${fmt(ini)}&dataFinal=${fmt(fim)}`;
   try {
-    const r = await fetch(url, { cache: "no-store" });
+    const r = await fetchTimeout(url);
     if (!r.ok) return null;
     const dados: { data: string; valor: string }[] = await r.json();
     if (!dados.length) return null;

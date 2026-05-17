@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, unlinkSync } from "node:fs";
 import { dirname } from "node:path";
 
 /**
@@ -52,15 +52,20 @@ export class CacheLRU<T> {
 
   private salvarNoDisco() {
     if (!this.opts.arquivo) return;
+    const arquivo = this.opts.arquivo;
+    const tmp = arquivo + ".tmp";
     try {
-      const dir = dirname(this.opts.arquivo);
+      const dir = dirname(arquivo);
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
       const payload = Array.from(this.map.entries())
         .filter(([, v]) => v.expiraEm > Date.now())
         .slice(-this.opts.max);
-      writeFileSync(this.opts.arquivo, JSON.stringify(payload), "utf-8");
+      // Write atômico: escreve em .tmp, depois rename (POSIX garante atomicidade)
+      writeFileSync(tmp, JSON.stringify(payload), "utf-8");
+      renameSync(tmp, arquivo);
     } catch {
-      /* falha silenciosa: cache é otimização */
+      // Falha silenciosa — cache é otimização. Limpa .tmp se sobrou.
+      try { if (existsSync(tmp)) unlinkSync(tmp); } catch {}
     }
   }
 

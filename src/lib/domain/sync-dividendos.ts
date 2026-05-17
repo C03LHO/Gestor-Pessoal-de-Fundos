@@ -30,37 +30,46 @@ export async function sincronizarDividendosDoAtivo(ativoId: string, anos = 10): 
       .map((l) => l.data.toISOString().slice(0, 10)),
   );
 
-  let importados = 0;
+  // Pré-calcula tudo antes de tocar no banco; depois grava em transação única.
+  const paraCriar: { data: Date; valor: number; valorPorCota: number; cotas: number; key: string }[] = [];
   for (const d of divs) {
     const key = d.data.toISOString().slice(0, 10);
     if (existentes.has(key)) continue;
     const cotas = cotasNoMomento(ativo.lancamentos, d.data);
     if (cotas <= 0) continue;
+    paraCriar.push({ data: d.data, valor: d.valor * cotas, valorPorCota: d.valor, cotas, key });
+  }
 
-    const valor = d.valor * cotas;
-    await prisma.lancamento.create({
-      data: {
-        tipo: "DIVIDENDO",
-        ativoId: ativo.id,
-        data: d.data,
-        valorTotal: valor,
-        observacao: `Auto (Yahoo) — ${d.valor.toFixed(4)}/cota × ${cotas}`,
-      },
-    });
-    importados++;
+  if (paraCriar.length === 0) return 0;
 
-    // Notificação push só para dividendos recentes (≤ 7 dias)
-    const seteDias = 7 * 24 * 60 * 60 * 1000;
-    if (Date.now() - d.data.getTime() < seteDias) {
+  // Transação atomica: ou tudo entra, ou nada (evita estado parcial em crash).
+  await prisma.$transaction(
+    paraCriar.map((p) =>
+      prisma.lancamento.create({
+        data: {
+          tipo: "DIVIDENDO",
+          ativoId: ativo.id,
+          data: p.data,
+          valorTotal: p.valor,
+          observacao: `Auto (${fonte}) — ${p.valorPorCota.toFixed(4)}/cota × ${p.cotas}`,
+        },
+      }),
+    ),
+  );
+
+  // Push só para dividendos recentes — depois da gravação dar OK
+  const seteDias = 7 * 24 * 60 * 60 * 1000;
+  for (const p of paraCriar) {
+    if (Date.now() - p.data.getTime() < seteDias) {
       enviarParaTodos({
-        titulo: `${ativo.ticker} pagou R$ ${valor.toFixed(2)}`,
-        corpo: `${cotas} cotas × R$ ${d.valor.toFixed(4)}`,
+        titulo: `${ativo.ticker} pagou R$ ${p.valor.toFixed(2)}`,
+        corpo: `${p.cotas} cotas × R$ ${p.valorPorCota.toFixed(4)}`,
         url: `/carteira/${ativo.ticker}`,
-        tag: `div-${ativo.ticker}-${key}`,
+        tag: `div-${ativo.ticker}-${p.key}`,
       }).catch(() => {});
     }
   }
-  return importados;
+  return paraCriar.length;
 }
 
 export async function sincronizarDividendosDeTodos(anos = 5): Promise<number> {

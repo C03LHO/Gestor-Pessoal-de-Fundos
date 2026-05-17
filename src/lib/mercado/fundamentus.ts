@@ -3,6 +3,7 @@
  * Página: https://www.fundamentus.com.br/fii_proventos.php?papel=MXRF11&tipo=2
  */
 import type { DividendoYahoo } from "./yahoo";
+import { fetchTimeout } from "./fetch-timeout";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
 
@@ -35,13 +36,12 @@ function decodificarHtml(s: string): string {
 export async function buscarDividendosFundamentus(ticker: string): Promise<DividendoYahoo[]> {
   const t = ticker.toUpperCase().replace(/\.SA$/, "");
   const url = `https://www.fundamentus.com.br/fii_proventos.php?papel=${t}&tipo=2`;
-  try {
-    const r = await fetch(url, {
-      headers: { "User-Agent": UA, "Accept-Language": "pt-BR" },
-      cache: "no-store",
-    });
-    if (!r.ok) return [];
-    const html = decodificarHtml(await r.text());
+  const r = await fetchTimeout(url, {
+    headers: { "User-Agent": UA, "Accept-Language": "pt-BR" },
+  });
+  if (!r.ok) throw new Error(`Fundamentus HTTP ${r.status}`);
+  const html = decodificarHtml(await r.text());
+  if (!html.includes("Proventos")) throw new Error("Fundamentus retornou página inesperada");
 
     const divs: DividendoYahoo[] = [];
     // Pega cada <tr> dentro do tbody. Quatro <td> por linha.
@@ -67,8 +67,5 @@ export async function buscarDividendosFundamentus(ticker: string): Promise<Divid
       if (!data || valor <= 0) continue;
       divs.push({ data, valor });
     }
-    return divs.sort((a, b) => +a.data - +b.data);
-  } catch {
-    return [];
-  }
+  return divs.sort((a, b) => +a.data - +b.data);
 }

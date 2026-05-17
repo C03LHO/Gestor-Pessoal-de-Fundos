@@ -3,11 +3,12 @@
  * Requer token grátis em https://brapi.dev (cadastro de 30s).
  */
 import type { CotacaoYahoo } from "./yahoo";
+import { fetchTimeout } from "./fetch-timeout";
 
 export async function buscarCotacaoBrapi(ticker: string, token: string): Promise<CotacaoYahoo | null> {
   const url = `https://brapi.dev/api/quote/${ticker}?token=${encodeURIComponent(token)}`;
   try {
-    const r = await fetch(url, { cache: "no-store" });
+    const r = await fetchTimeout(url);
     if (!r.ok) return null;
     const j: any = await r.json();
     const x = j?.results?.[0];

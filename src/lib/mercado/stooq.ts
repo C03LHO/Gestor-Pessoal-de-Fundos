@@ -6,6 +6,7 @@
  * Retorna CSV. Para FIIs brasileiros, sufixo `.sa` (mesmo do Yahoo).
  */
 import type { CotacaoYahoo } from "./yahoo";
+import { fetchTimeout } from "./fetch-timeout";
 
 const UA = "Mozilla/5.0 (compatible; FundosApp/1.0)";
 
@@ -13,7 +14,7 @@ export async function buscarCotacaoStooq(ticker: string): Promise<CotacaoYahoo |
   const t = ticker.toLowerCase().replace(/\.sa$/, "") + ".sa";
   const url = `https://stooq.com/q/l/?s=${t}&f=sd2t2ohlcv&h&e=csv`;
   try {
-    const r = await fetch(url, { headers: { "User-Agent": UA }, cache: "no-store" });
+    const r = await fetchTimeout(url, { headers: { "User-Agent": UA } });
     if (!r.ok) return null;
     const csv = await r.text();
     const linhas = csv.trim().split(/\r?\n/);

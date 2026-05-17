@@ -1,5 +1,7 @@
 // Service Worker do Fundos: cache offline + Web Push.
-const CACHE = "fundos-v2";
+// Versão atrelada a build do app — usa __NEXT_BUILD_ID quando disponível,
+// senão fallback fixo. O middleware injeta o build id no path se necessário.
+const CACHE = "fundos-v3-" + (self.registration?.scope ?? "default").split("/").pop();
 
 const ESTATICOS = [
   "/manifest.webmanifest",

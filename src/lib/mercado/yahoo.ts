@@ -2,6 +2,7 @@
  * Integração simples com Yahoo Finance.
  * Não exige token. Para FIIs brasileiros, sufixo .SA.
  */
+import { fetchTimeout } from "./fetch-timeout";
 
 const UA = "Mozilla/5.0 (compatible; FundosApp/1.0)";
 
@@ -21,7 +22,7 @@ const sufixar = (t: string) => (t.includes(".") ? t : `${t}.SA`);
 
 export async function buscarCotacao(ticker: string): Promise<CotacaoYahoo | null> {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sufixar(ticker)}?interval=1d`;
-  const r = await fetch(url, { headers: { "User-Agent": UA }, cache: "no-store" });
+  const r = await fetchTimeout(url, { headers: { "User-Agent": UA } });
   if (!r.ok) return null;
   const j: any = await r.json();
   const meta = j?.chart?.result?.[0]?.meta;
@@ -36,7 +37,7 @@ export async function buscarCotacao(ticker: string): Promise<CotacaoYahoo | null
 
 export async function buscarDividendos(ticker: string, anos = 5): Promise<DividendoYahoo[]> {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sufixar(ticker)}?interval=1mo&range=${anos}y&events=div`;
-  const r = await fetch(url, { headers: { "User-Agent": UA }, cache: "no-store" });
+  const r = await fetchTimeout(url, { headers: { "User-Agent": UA } });
   if (!r.ok) return [];
   const j: any = await r.json();
   const divs = j?.chart?.result?.[0]?.events?.dividends;
@@ -110,7 +111,7 @@ export async function buscarPrecoNaData(
   const fim    = Math.floor((d.getTime() + 5  * 86400 * 1000) / 1000);
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sufixar(ticker.toUpperCase())}?period1=${inicio}&period2=${fim}&interval=1d`;
   try {
-    const r = await fetch(url, { headers: { "User-Agent": UA }, cache: "no-store" });
+    const r = await fetchTimeout(url, { headers: { "User-Agent": UA } });
     if (!r.ok) return null;
     const j: any = await r.json();
     const result = j?.chart?.result?.[0];
@@ -145,7 +146,7 @@ export async function buscarSerieHistorica(
 
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sufixar(ticker.toUpperCase())}?interval=${cfg.interval}&range=${cfg.range}`;
   try {
-    const r = await fetch(url, { headers: { "User-Agent": UA }, cache: "no-store" });
+    const r = await fetchTimeout(url, { headers: { "User-Agent": UA } });
     if (!r.ok) return null;
     const j: any = await r.json();
     const result = j?.chart?.result?.[0];
@@ -185,7 +186,7 @@ export async function buscarHistorico52s(ticker: string): Promise<Historico52s |
   if (cached) return cached;
 
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sufixar(chave)}?interval=1d&range=1y`;
-  const r = await fetch(url, { headers: { "User-Agent": UA }, cache: "no-store" });
+  const r = await fetchTimeout(url, { headers: { "User-Agent": UA } });
   if (!r.ok) return null;
   const j: any = await r.json();
   const closes: (number | null)[] = j?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];

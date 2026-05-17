@@ -3,34 +3,48 @@ import { prisma } from "./prisma";
 import { log } from "./log";
 
 let configurado = false;
+let vapidPromise: Promise<{ vapidPublicKey: string }> | null = null;
 
 /**
  * Garante que existem VAPID keys salvas em Configuracao e que o web-push
  * está pronto para enviar. Gera novo par na primeira execução.
+ *
+ * Lock via Promise singleton: chamadas concorrentes esperam a primeira terminar
+ * em vez de gerarem múltiplas chaves VAPID.
  */
 export async function garantirVapid() {
-  const cfg = await prisma.configuracao.findFirst();
-  if (!cfg) throw new Error("Configuracao não inicializada");
+  if (vapidPromise) return vapidPromise;
 
-  let pub = cfg.vapidPublicKey;
-  let priv = cfg.vapidPrivateKey;
+  vapidPromise = (async () => {
+    const cfg = await prisma.configuracao.findFirst();
+    if (!cfg) throw new Error("Configuracao não inicializada");
 
-  if (!pub || !priv) {
-    const par = webpush.generateVAPIDKeys();
-    pub = par.publicKey;
-    priv = par.privateKey;
-    await prisma.configuracao.update({
-      where: { id: cfg.id },
-      data: { vapidPublicKey: pub, vapidPrivateKey: priv },
-    });
-    log.info("vapid.generated");
-  }
+    let pub = cfg.vapidPublicKey;
+    let priv = cfg.vapidPrivateKey;
 
-  if (!configurado) {
-    webpush.setVapidDetails("mailto:fundos@local", pub, priv);
-    configurado = true;
-  }
-  return { vapidPublicKey: pub };
+    if (!pub || !priv) {
+      const par = webpush.generateVAPIDKeys();
+      pub = par.publicKey;
+      priv = par.privateKey;
+      await prisma.configuracao.update({
+        where: { id: cfg.id },
+        data: { vapidPublicKey: pub, vapidPrivateKey: priv },
+      });
+      log.info("vapid.generated");
+    }
+
+    if (!configurado) {
+      webpush.setVapidDetails("mailto:fundos@local", pub, priv);
+      configurado = true;
+    }
+    return { vapidPublicKey: pub };
+  })().catch((e) => {
+    // Limpa o lock em caso de erro pra próximas tentativas funcionarem
+    vapidPromise = null;
+    throw e;
+  });
+
+  return vapidPromise;
 }
 
 export type Payload = {

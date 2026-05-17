@@ -12,6 +12,7 @@ import { prisma } from "../prisma";
 import { buscarDividendos as buscarDividendosYahoo, type DividendoYahoo } from "./yahoo";
 import { buscarDividendosStatusInvest } from "./statusinvest";
 import { buscarDividendosFundamentus } from "./fundamentus";
+import { fetchTimeout } from "./fetch-timeout";
 import { log } from "../log";
 
 type Fonte = "yahoo" | "statusinvest" | "fundamentus" | "brapi";
@@ -25,7 +26,7 @@ async function buscarDividendosBrapi(ticker: string, token: string): Promise<Div
   try {
     const t = ticker.toUpperCase().replace(/\.SA$/, "");
     const url = `https://brapi.dev/api/quote/${t}?range=5y&interval=1mo&modules=dividends&token=${encodeURIComponent(token)}`;
-    const r = await fetch(url, { cache: "no-store" });
+    const r = await fetchTimeout(url);
     if (!r.ok) return [];
     const j: any = await r.json();
     const cashDivs = j?.results?.[0]?.dividendsData?.cashDividends ?? [];
