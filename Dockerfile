@@ -27,7 +27,8 @@ RUN pnpm run build
 # o symlink em node_modules/.prisma quebra na cópia do COPY do Docker.
 # Em vez disso copiamos a árvore completa (mais pesado, mas confiável).
 FROM node:20-alpine AS runner
-RUN apk add --no-cache libc6-compat openssl tini
+# rclone vai dentro do container para o backup automático funcionar
+RUN apk add --no-cache libc6-compat openssl tini rclone
 WORKDIR /app
 
 ENV NODE_ENV=production

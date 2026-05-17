@@ -14,6 +14,9 @@ services:
       TZ: America/Sao_Paulo
     volumes:
       - fundos_data:/app/data
+      # Monta o config do rclone do host (read-only) para o backup automático funcionar.
+      # No Umbrel: rclone config (uma vez, configurando OneDrive/Drive).
+      - /home/umbrel/.config/rclone:/home/node/.config/rclone:ro
     healthcheck:
       # Usa node fetch (built-in no Node 20) — evita problemas de wget+IPv6+busybox.
       # 127.0.0.1 explícito força IPv4. start_period generoso para o primeiro boot.

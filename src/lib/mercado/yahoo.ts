@@ -99,6 +99,41 @@ const RANGE_INTERVAL: Record<string, { interval: string; range: string }> = {
   "1y":  { interval: "1d",  range: "1y"  },
 };
 
+/**
+ * Busca o preço de fechamento na data específica (ou pregão mais próximo).
+ */
+export async function buscarPrecoNaData(
+  ticker: string, dataISO: string,
+): Promise<{ preco: number; data: string } | null> {
+  const d = new Date(dataISO + "T12:00:00");
+  const inicio = Math.floor((d.getTime() - 10 * 86400 * 1000) / 1000);
+  const fim    = Math.floor((d.getTime() + 5  * 86400 * 1000) / 1000);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sufixar(ticker.toUpperCase())}?period1=${inicio}&period2=${fim}&interval=1d`;
+  try {
+    const r = await fetch(url, { headers: { "User-Agent": UA }, cache: "no-store" });
+    if (!r.ok) return null;
+    const j: any = await r.json();
+    const result = j?.chart?.result?.[0];
+    if (!result) return null;
+    const stamps: number[] = result.timestamp ?? [];
+    const closes: (number | null)[] = result.indicators?.quote?.[0]?.close ?? [];
+    const alvoMs = d.getTime();
+    let melhorIdx = -1, melhorDiff = Infinity;
+    for (let i = 0; i < stamps.length; i++) {
+      if (closes[i] == null || closes[i]! <= 0) continue;
+      const diff = Math.abs(stamps[i] * 1000 - alvoMs);
+      if (diff < melhorDiff) { melhorDiff = diff; melhorIdx = i; }
+    }
+    if (melhorIdx < 0) return null;
+    return {
+      preco: closes[melhorIdx]!,
+      data: new Date(stamps[melhorIdx] * 1000).toISOString().slice(0, 10),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function buscarSerieHistorica(
   ticker: string,
   rangeId: string,

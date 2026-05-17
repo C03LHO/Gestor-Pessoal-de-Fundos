@@ -391,6 +391,32 @@ function LancamentoDialog({
     return () => clearTimeout(handle);
   }, [ticker, precoUnit]);
 
+  // Auto-busca preço de fechamento da data quando muda data ou ticker (modo NOVO, data passada)
+  useEffect(() => {
+    if (editing) return;
+    if (!precisaQtd) return;
+    const t = ticker.trim().toUpperCase();
+    if (!t || t.length < 4 || !data) return;
+    const dataAlvo = new Date(data + "T12:00:00");
+    const hoje = new Date();
+    const ehHoje = dataAlvo.toDateString() === hoje.toDateString();
+    if (ehHoje || dataAlvo > hoje) return; // só puxa histórico se data passada
+    const handle = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/mercado/preco-historico?ticker=${encodeURIComponent(t)}&data=${data}`);
+        if (!r.ok) return;
+        const j = await r.json();
+        if (typeof j.preco === "number") {
+          const p = j.preco.toFixed(2);
+          setPrecoUnit(p);
+          if (quantidade) recalcTotal(quantidade, p);
+        }
+      } catch {}
+    }, 500);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticker, data]);
+
   // Bloqueia scroll do body quando aberto
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -418,11 +444,17 @@ function LancamentoDialog({
     setTicker(a.ticker);
     setFoco(false);
     if (!editing) {
-      const preco = a.ultimoPrecoCompra ?? a.precoAtual;
-      if (preco != null && !precoUnit) {
-        const p = preco.toFixed(2);
-        setPrecoUnit(p);
-        if (quantidade) recalcTotal(quantidade, p);
+      // Se a data é passada, NÃO pré-preenche com último preço — o useEffect
+      // de preço histórico vai puxar o close do Yahoo na data certa.
+      const dataAlvo = new Date(data + "T12:00:00");
+      const ehHojeOuFuturo = dataAlvo >= new Date(new Date().toDateString());
+      if (ehHojeOuFuturo) {
+        const preco = a.ultimoPrecoCompra ?? a.precoAtual;
+        if (preco != null && !precoUnit) {
+          const p = preco.toFixed(2);
+          setPrecoUnit(p);
+          if (quantidade) recalcTotal(quantidade, p);
+        }
       }
     }
   }
