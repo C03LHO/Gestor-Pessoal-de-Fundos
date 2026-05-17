@@ -15,13 +15,17 @@ services:
     volumes:
       - fundos_data:/app/data
     healthcheck:
-      # wget --spider só faz HEAD/GET sem baixar corpo, mais leve.
-      # start_period generoso: primeira inicialização inclui prisma db push.
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      # Usa node fetch (built-in no Node 20) — evita problemas de wget+IPv6+busybox.
+      # 127.0.0.1 explícito força IPv4. start_period generoso para o primeiro boot.
+      test:
+        - "CMD"
+        - "node"
+        - "-e"
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
       interval: 60s
       timeout: 15s
       retries: 5
-      start_period: 90s
+      start_period: 120s
 
 volumes:
   fundos_data:
