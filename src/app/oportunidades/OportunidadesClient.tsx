@@ -2,10 +2,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Trash2, Target, X, Pencil } from "lucide-react";
+import { Plus, Trash2, Target, X, Pencil, ChevronDown, AlertTriangle } from "lucide-react";
 import { brl, num, pct } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ux/Toast";
+import type { Valuation, ClasseValuation } from "@/lib/domain/valuation";
 
 type Op = {
   ticker: string;
@@ -14,6 +15,8 @@ type Op = {
   ordem: number;
   notas: string | null;
   precoAtual: number;
+  janelaDias: number;
+  valuation: Valuation;
   max52s: number;
   min52s: number;
   mediana52s: number;
@@ -28,16 +31,31 @@ type Op = {
   faltaInvestir: number;
 };
 
+const CLASSE_INFO: Record<ClasseValuation, { rotulo: string; cor: string; bg: string; border: string }> = {
+  muito_barato: { rotulo: "Muito barato", cor: "text-emerald-300", bg: "bg-emerald-500/15", border: "border-emerald-500/30" },
+  barato:       { rotulo: "Barato",       cor: "text-emerald-300", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+  justo:        { rotulo: "Justo",        cor: "text-zinc-300",    bg: "bg-zinc-700/20",    border: "border-zinc-700/40" },
+  caro:         { rotulo: "Caro",         cor: "text-amber-300",   bg: "bg-amber-500/10",   border: "border-amber-500/20" },
+  muito_caro:   { rotulo: "Muito caro",   cor: "text-rose-300",    bg: "bg-rose-500/15",    border: "border-rose-500/30" },
+};
+
 export function OportunidadesClient({ oportunidades }: { oportunidades: Op[] }) {
   const router = useRouter();
   const toast = useToast();
-  const [ordem, setOrdem] = useState<"oportunidade" | "meta" | "ticker">("oportunidade");
+  const [ordem, setOrdem] = useState<"score" | "percentil" | "minima" | "meta" | "ticker">("score");
+  const [filtroClasse, setFiltroClasse] = useState<ClasseValuation | "todas">("todas");
   const [novoTicker, setNovoTicker] = useState("");
   const [adicionando, setAdicionando] = useState(false);
   const [editandoMeta, setEditandoMeta] = useState<Op | null>(null);
 
-  const lista = [...oportunidades].sort((a, b) => {
-    if (ordem === "oportunidade") return b.scoreOportunidade - a.scoreOportunidade;
+  const filtradas = filtroClasse === "todas"
+    ? oportunidades
+    : oportunidades.filter((o) => o.valuation.classe === filtroClasse);
+
+  const lista = [...filtradas].sort((a, b) => {
+    if (ordem === "score") return b.valuation.score - a.valuation.score;
+    if (ordem === "percentil") return a.valuation.percentilHistorico - b.valuation.percentilHistorico;
+    if (ordem === "minima") return a.valuation.distMinima - b.valuation.distMinima;
     if (ordem === "meta") return a.progressoMeta - b.progressoMeta;
     return a.ticker.localeCompare(b.ticker);
   });
@@ -125,25 +143,52 @@ export function OportunidadesClient({ oportunidades }: { oportunidades: Op[] }) 
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 items-center">
-        <span className="text-xs text-zinc-500">Ordenar:</span>
-        {([
-          { id: "oportunidade", label: "Mais barato" },
-          { id: "meta",         label: "Falta investir" },
-          { id: "ticker",       label: "Ticker" },
-        ] as const).map((o) => (
-          <button
-            key={o.id} onClick={() => setOrdem(o.id)}
-            className={cn(
-              "px-2.5 py-1 text-xs rounded-md border",
-              ordem === o.id
-                ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
-                : "border-zinc-800 text-zinc-400",
-            )}
-          >
-            {o.label}
-          </button>
-        ))}
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-zinc-500">Ordenar:</span>
+          {([
+            { id: "score",     label: "Score" },
+            { id: "percentil", label: "Percentil" },
+            { id: "minima",    label: "Perto da mín" },
+            { id: "meta",      label: "Falta investir" },
+            { id: "ticker",    label: "Ticker" },
+          ] as const).map((o) => (
+            <button
+              key={o.id} onClick={() => setOrdem(o.id)}
+              className={cn(
+                "px-2.5 py-1 text-xs rounded-md border",
+                ordem === o.id
+                  ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
+                  : "border-zinc-800 text-zinc-400",
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-zinc-500">Filtrar:</span>
+          {([
+            { id: "todas",        label: "Todas" },
+            { id: "muito_barato", label: "Muito barato" },
+            { id: "barato",       label: "Barato" },
+            { id: "justo",        label: "Justo" },
+            { id: "caro",         label: "Caro" },
+            { id: "muito_caro",   label: "Muito caro" },
+          ] as const).map((o) => (
+            <button
+              key={o.id} onClick={() => setFiltroClasse(o.id as any)}
+              className={cn(
+                "px-2.5 py-1 text-xs rounded-md border",
+                filtroClasse === o.id
+                  ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
+                  : "border-zinc-800 text-zinc-400",
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -185,77 +230,157 @@ export function OportunidadesClient({ oportunidades }: { oportunidades: Op[] }) 
 function OportunidadeCard({
   o, onAjustarMeta, onRemover,
 }: { o: Op; onAjustarMeta: () => void; onRemover: () => void }) {
-  const corOportunidade =
-    o.scoreOportunidade >= 60 ? "text-emerald-400" :
-    o.scoreOportunidade >= 35 ? "text-amber-300" :
-    "text-zinc-400";
+  const [expandido, setExpandido] = useState(false);
+  const v = o.valuation;
+  const info = CLASSE_INFO[v.classe];
 
-  const tagBarato =
-    o.scoreOportunidade >= 60 ? "BARATO" :
-    o.scoreOportunidade >= 35 ? "OK" :
-    "CARO";
+  // Posição do marcador na régua: usa percentil verdadeiro
+  const posPct = Math.max(2, Math.min(98, v.percentilHistorico));
+  const medianaPos = v.max > v.min ? ((v.mediana - v.min) / (v.max - v.min)) * 100 : 50;
+  const mediaPos = v.max > v.min ? ((v.media - v.min) / (v.max - v.min)) * 100 : 50;
 
-  const explicacao = explicarScore(o, tagBarato);
+  const confiancaCor =
+    v.confianca === "alta" ? "text-emerald-400" :
+    v.confianca === "media" ? "text-amber-300" : "text-rose-300";
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+      {/* Cabeçalho */}
       <div className="flex justify-between items-start gap-2 mb-3">
         <Link href={`/carteira/${o.ticker}`} className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-base">{o.ticker}</span>
             <span className={cn(
               "text-[10px] uppercase tracking-wider font-medium px-1.5 py-0.5 rounded",
-              o.scoreOportunidade >= 60 && "bg-emerald-500/15 text-emerald-300",
-              o.scoreOportunidade >= 35 && o.scoreOportunidade < 60 && "bg-amber-500/15 text-amber-300",
-              o.scoreOportunidade < 35 && "bg-zinc-700/30 text-zinc-400",
+              info.bg, info.cor, "border", info.border,
             )}>
-              {tagBarato}
+              {info.rotulo}
+            </span>
+            <span className={cn("text-[10px] tabular-nums", confiancaCor)} title="Confiança da análise">
+              · {v.confianca}
             </span>
           </div>
           {o.notas && <div className="text-[10px] text-zinc-500 truncate mt-0.5">{o.notas}</div>}
         </Link>
         <div className="text-right">
           <div className="text-lg font-semibold tabular-nums">{brl(o.precoAtual)}</div>
-          <div className={cn("text-[10px] tabular-nums", corOportunidade)}>
-            {o.drawdown >= 0
-              ? <>↓ {pct(o.drawdown)} da máxima</>
-              : <>↑ {pct(-o.drawdown)} da máxima</>}
+          <div className="text-[10px] text-zinc-500">
+            score <span className={cn("font-semibold tabular-nums",
+              v.score >= 60 ? "text-emerald-400" :
+              v.score >= 40 ? "text-zinc-300" :
+              v.score >= 20 ? "text-amber-300" : "text-rose-300"
+            )}>{v.score}</span><span className="text-zinc-600">/100</span>
           </div>
         </div>
       </div>
 
-      {/* Explicação do BARATO/OK/CARO */}
+      {/* Resumo do valuation */}
       <div className={cn(
-        "rounded-lg p-2.5 mb-3 text-[11px] leading-snug",
-        o.scoreOportunidade >= 60 && "bg-emerald-950/30 border border-emerald-500/20 text-emerald-200",
-        o.scoreOportunidade >= 35 && o.scoreOportunidade < 60 && "bg-amber-950/30 border border-amber-500/20 text-amber-200",
-        o.scoreOportunidade < 35 && "bg-zinc-900/60 border border-zinc-800 text-zinc-400",
+        "rounded-lg p-2.5 mb-3 text-[11px] leading-snug border",
+        info.bg, info.border,
       )}>
-        <span className="font-semibold">Por quê {tagBarato}?</span>{" "}{explicacao}
+        <div className={cn("font-semibold mb-0.5", info.cor)}>
+          {info.rotulo} · percentil {v.percentilHistorico.toFixed(0)}
+        </div>
+        <div className="text-zinc-300">{v.resumo}</div>
       </div>
 
-      {/* Barra de range 52s */}
+      {/* Régua histórica com marcadores */}
       <div className="mb-3">
         <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
-          <span>min {brl(o.min52s)}</span>
-          <span>mediana {brl(o.mediana52s)}</span>
-          <span>máx {brl(o.max52s)}</span>
+          <span>mín {brl(v.min)}</span>
+          <span>{o.janelaDias} pregões (~12m)</span>
+          <span>máx {brl(v.max)}</span>
         </div>
-        <div className="relative h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+        <div className="relative h-3 rounded-full bg-zinc-800">
+          {/* Marcador da média */}
+          <div
+            className="absolute top-0 bottom-0 w-px bg-zinc-500/60"
+            style={{ left: `${mediaPos}%` }}
+            title={`Média ${brl(v.media)}`}
+          />
+          {/* Marcador da mediana */}
+          <div
+            className="absolute top-0 bottom-0 w-px bg-zinc-400"
+            style={{ left: `${medianaPos}%` }}
+            title={`Mediana ${brl(v.mediana)}`}
+          />
+          {/* Marcador do preço atual */}
           <div
             className={cn(
-              "absolute inset-y-0 left-0 rounded-full",
-              o.scoreOportunidade >= 60 ? "bg-emerald-500" :
-              o.scoreOportunidade >= 35 ? "bg-amber-500" :
-              "bg-zinc-600",
+              "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full border-2 border-zinc-950 shadow",
+              v.classe === "muito_barato" || v.classe === "barato" ? "bg-emerald-400" :
+              v.classe === "justo" ? "bg-zinc-300" :
+              "bg-rose-400"
             )}
-            style={{ width: `${(o.percentil * 100).toFixed(1)}%` }}
+            style={{ left: `${posPct}%` }}
+            title={`Preço atual ${brl(o.precoAtual)} (percentil ${v.percentilHistorico.toFixed(0)})`}
           />
+        </div>
+        <div className="flex justify-between text-[9px] text-zinc-600 mt-0.5">
+          <span>↓ {pct(v.distMaxima)} da máx</span>
+          <span>mediana {brl(v.mediana)}</span>
+          <span>↑ {pct(v.distMinima)} da mín</span>
         </div>
       </div>
 
+      {/* Avisos (se houver) */}
+      {v.avisos.length > 0 && (
+        <div className="mb-3 text-[10px] text-amber-300/90 flex items-start gap-1.5 bg-amber-950/20 border border-amber-900/30 rounded-md px-2 py-1.5">
+          <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+          <div>{v.avisos.join(" · ")}</div>
+        </div>
+      )}
+
+      {/* Detalhes expansíveis */}
+      <button
+        onClick={() => setExpandido((e) => !e)}
+        className="w-full text-[10px] text-zinc-500 hover:text-zinc-300 flex items-center justify-center gap-1 py-1.5 border-y border-zinc-800/60"
+      >
+        <ChevronDown size={12} className={cn("transition", expandido && "rotate-180")} />
+        {expandido ? "ocultar análise detalhada" : "ver análise detalhada"}
+      </button>
+      {expandido && (
+        <div className="py-3 space-y-3 border-b border-zinc-800/60">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
+            <Stat label="Mínima" valor={brl(v.min)} />
+            <Stat label="Máxima" valor={brl(v.max)} />
+            <Stat label="Média" valor={brl(v.media)} />
+            <Stat label="Mediana" valor={brl(v.mediana)} />
+            <Stat label="Percentil" valor={v.percentilHistorico.toFixed(0)} />
+            <Stat label="Score" valor={`${v.score}/100`} />
+            <Stat label="Desvio vs média" valor={pct(v.desvioMedia)} cor={v.desvioMedia <= 0 ? "text-emerald-400" : "text-rose-400"} />
+            <Stat label="Desvio vs mediana" valor={pct(v.desvioMediana)} cor={v.desvioMediana <= 0 ? "text-emerald-400" : "text-rose-400"} />
+            <Stat label="Acima da mín" valor={pct(v.distMinima)} />
+            <Stat label="Desconto da máx" valor={pct(v.distMaxima)} cor="text-emerald-400" />
+            <Stat label="Volatilidade (CV)" valor={(v.coefVariacao * 100).toFixed(1) + "%"} />
+            <Stat label="Confiança" valor={v.confianca} cor={confiancaCor} />
+          </div>
+          {v.motivos.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">Motivos</div>
+              <ul className="space-y-1">
+                {v.motivos.map((m, i) => (
+                  <li
+                    key={i}
+                    className={cn(
+                      "text-[11px] flex items-start gap-2",
+                      m.peso === "positivo" ? "text-emerald-300" :
+                      m.peso === "negativo" ? "text-rose-300" : "text-zinc-400",
+                    )}
+                  >
+                    <span className="mt-1 w-1 h-1 rounded-full bg-current shrink-0" />
+                    {m.texto}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Progresso da meta */}
-      <div className="mb-2">
+      <div className="mt-3 mb-2">
         <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
           <span><Target className="inline" size={10} /> Meta {brl(o.metaInvestimento)}</span>
           <span>{pct(o.progressoMeta)}</span>
@@ -288,24 +413,13 @@ function OportunidadeCard({
   );
 }
 
-function explicarScore(o: Op, tag: string): string {
-  const drawdownPct = (o.drawdown * 100).toFixed(1);
-  const percentilPct = (o.percentil * 100).toFixed(0);
-  const range = o.max52s - o.min52s;
-  const ondeNoRange =
-    o.percentil < 0.2 ? "perto da mínima" :
-    o.percentil < 0.4 ? "abaixo do meio do range" :
-    o.percentil < 0.6 ? "no meio do range" :
-    o.percentil < 0.8 ? "acima do meio do range" :
-    "perto da máxima";
-
-  if (tag === "BARATO") {
-    return `Caiu ${drawdownPct}% da máxima de 52 semanas e está ${ondeNoRange} histórica (percentil ${percentilPct}). Janela boa de compra se o fundamento não mudou.`;
-  }
-  if (tag === "OK") {
-    return `Está ${ondeNoRange} histórica (percentil ${percentilPct}), com queda de ${drawdownPct}% da máxima. Preço neutro — nem promoção nem caro.`;
-  }
-  return `Praticamente na máxima de 52s (drawdown ${drawdownPct}%) e ${ondeNoRange} (percentil ${percentilPct}). Comprar agora paga prêmio sobre o histórico — considere esperar uma correção.`;
+function Stat({ label, valor, cor }: { label: string; valor: string; cor?: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-zinc-500">{label}</span>
+      <span className={cn("tabular-nums font-medium", cor ?? "text-zinc-200")}>{valor}</span>
+    </div>
+  );
 }
 
 function MetaEditor({ op, onSalvar, onClose }:

@@ -1,5 +1,7 @@
 import { prisma } from "../prisma";
 import { buscarHistorico52s, buscarCotacao } from "../mercado/yahoo";
+import { analisarValuation, type Valuation } from "./valuation";
+import { recalcularAtivo, type LancamentoInput } from "./portfolio";
 
 export const TOP_10_DEFAULT: { ticker: string; ordem: number; notas: string }[] = [
   { ticker: "MXRF11", ordem: 1,  notas: "Papel CRI · XP · maior liquidez" },
@@ -61,12 +63,17 @@ export type Oportunidade = {
   ordem: number;
   notas: string | null;
   precoAtual: number;
+  // Janela analisada (12m dia a dia)
+  janelaDias: number;
+  // Análise completa de valuation (engine centralizada)
+  valuation: Valuation;
+  // Campos legacy mantidos por compat. com a UI antiga — derivados do valuation.
   max52s: number;
   min52s: number;
   mediana52s: number;
-  drawdown: number;       // (max - atual) / max
-  percentil: number;      // 0=min, 1=max
-  scoreOportunidade: number; // 0..100, maior = melhor oportunidade
+  drawdown: number;
+  percentil: number;       // 0..1 — posição linear, mantido por compat
+  scoreOportunidade: number; // 0..100 (alias de valuation.score)
   cotasAtuais: number;
   investido: number;
   metaInvestimento: number;
@@ -99,24 +106,29 @@ export async function calcularOportunidades(carteiraId?: string): Promise<Oportu
     if (!historico) continue;
     const ativo = ativos.find((a) => a.ticker === w.ticker);
 
+    // Posição via engine centralizada (PM correto + lucro realizado etc.)
     let cotas = 0, investido = 0;
     if (ativo) {
-      for (const l of ativo.lancamentos) {
-        if (l.tipo === "COMPRA" || l.tipo === "REINVESTIMENTO") {
-          cotas += l.quantidade ?? 0; investido += l.valorTotal;
-        } else if (l.tipo === "VENDA") {
-          cotas -= l.quantidade ?? 0; investido -= l.valorTotal;
-        }
-      }
+      const lancs: LancamentoInput[] = ativo.lancamentos.map((l) => ({
+        id: l.id,
+        tipo: l.tipo as LancamentoInput["tipo"],
+        data: l.data,
+        ativoId: l.ativoId,
+        quantidade: l.quantidade,
+        precoUnit: l.precoUnit,
+        valorTotal: l.valorTotal,
+      }));
+      const estado = recalcularAtivo(
+        { id: ativo.id, ticker: ativo.ticker, nome: ativo.nome, segmento: ativo.segmento, precoAtual: ativo.precoAtual },
+        lancs,
+      );
+      cotas = estado.cotas;
+      investido = estado.custoTotal;
     }
 
-    const drawdown = (historico.max - historico.precoAtual) / historico.max;
-    const range = historico.max - historico.min;
-    const percentil = range > 0 ? (historico.precoAtual - historico.min) / range : 0.5;
-
-    const scoreOportunidade = Math.max(0, Math.min(100,
-      drawdown * 100 * 0.5 + (1 - percentil) * 100 * 0.5,
-    ));
+    // Valuation pela engine central — separa o "atual" do "histórico".
+    const precosHistoricos = historico.precos.filter((p) => p !== historico.precoAtual);
+    const valuation = analisarValuation(precosHistoricos, historico.precoAtual);
 
     const faltaInvestir = Math.max(0, w.metaInvestimento - investido);
     const cotasParaMeta = historico.precoAtual > 0 ? Math.ceil(faltaInvestir / historico.precoAtual) : 0;
@@ -128,12 +140,15 @@ export async function calcularOportunidades(carteiraId?: string): Promise<Oportu
       ordem: w.ordem,
       notas: w.notas,
       precoAtual: historico.precoAtual,
-      max52s: historico.max,
-      min52s: historico.min,
-      mediana52s: historico.mediana,
-      drawdown,
-      percentil,
-      scoreOportunidade,
+      janelaDias: historico.precos.length,
+      valuation,
+      // Aliases legacy (não usados pela UI nova, mas mantidos por compat.)
+      max52s: valuation.max,
+      min52s: valuation.min,
+      mediana52s: valuation.mediana,
+      drawdown: valuation.distMaxima,
+      percentil: valuation.posicaoLinear / 100,
+      scoreOportunidade: valuation.score,
       cotasAtuais: cotas,
       investido,
       metaInvestimento: w.metaInvestimento,
