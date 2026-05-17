@@ -18,11 +18,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = patchSchema.parse(await req.json());
   const atualizado = await prisma.lancamento.update({ where: { id }, data: body });
 
+  let dividendosImportados = 0;
   if (atualizado.ativoId && (atualizado.tipo === "COMPRA" || atualizado.tipo === "REINVESTIMENTO")) {
-    sincronizarDividendosDoAtivo(atualizado.ativoId, 10).catch(() => {});
+    try {
+      dividendosImportados = await sincronizarDividendosDoAtivo(atualizado.ativoId, 10);
+    } catch {}
   }
 
-  return NextResponse.json(atualizado);
+  return NextResponse.json({ ...atualizado, dividendosImportados });
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {

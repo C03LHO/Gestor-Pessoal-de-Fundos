@@ -515,6 +515,13 @@ function LancamentoDialog({
         body: JSON.stringify(body),
       });
       if (!r.ok) { setErro(await r.text()); return; }
+      const resp = await r.json().catch(() => ({}));
+      const importados = resp?.dividendosImportados ?? 0;
+      if (importados > 0) {
+        toast("sucesso", `Lançamento salvo. ${importados} dividendos retroativos importados.`);
+      } else if (!editing) {
+        toast("sucesso", "Lançamento salvo.");
+      }
       onSaved();
     } catch (e: any) {
       setErro(e?.message ?? "Erro desconhecido");

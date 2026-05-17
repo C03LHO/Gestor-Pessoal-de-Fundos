@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { sincronizarDividendosDoAtivo } from "@/lib/domain/sync-dividendos";
 import { getCarteiraAtivaId } from "@/lib/carteira";
+import { log } from "@/lib/log";
 
 const schema = z.object({
   tipo: z.enum(["COMPRA", "VENDA", "APORTE", "DIVIDENDO", "REINVESTIMENTO"]),
@@ -31,13 +32,22 @@ export async function POST(req: NextRequest) {
   const carteiraId = await getCarteiraAtivaId();
   const novo = await prisma.lancamento.create({ data: { ...body, carteiraId } });
 
-  // Inteligência: ao registrar compra/reinvestimento, dispara re-import de dividendos
-  // do ativo em background. Datas onde o usuário PASSA a ter cotas geram lançamentos.
+  // Em compra/reinvestimento: AGUARDA o import de dividendos (síncrono)
+  // para que o usuário veja imediatamente todos os proventos retroativos
+  // dos meses em que ele tinha cotas.
+  let dividendosImportados = 0;
+  let sincErro: string | null = null;
   if (body.ativoId && (body.tipo === "COMPRA" || body.tipo === "REINVESTIMENTO")) {
-    sincronizarDividendosDoAtivo(body.ativoId, 10).catch((e) => {
-      console.error("[sync-divs] erro:", e?.message);
-    });
+    try {
+      dividendosImportados = await sincronizarDividendosDoAtivo(body.ativoId, 10);
+      log.info("lancamento.dividendos_importados", {
+        ativoId: body.ativoId, count: dividendosImportados,
+      });
+    } catch (e: any) {
+      sincErro = e?.message ?? "falha desconhecida";
+      log.error("lancamento.sync_divs_falhou", { ativoId: body.ativoId, erro: sincErro });
+    }
   }
 
-  return NextResponse.json(novo, { status: 201 });
+  return NextResponse.json({ ...novo, dividendosImportados, sincErro }, { status: 201 });
 }
