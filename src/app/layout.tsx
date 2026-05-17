@@ -63,9 +63,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               paddingBottom: "max(6rem, calc(env(safe-area-inset-bottom) + 4.5rem))",
             }}
           >
-            <div className="flex justify-between items-center mb-4 gap-2">
+            {/* mobile fix: flex-wrap evita overflow horizontal em 375px */}
+            <div className="flex justify-between items-center mb-4 gap-2 flex-wrap">
               <CarteiraSwitcher ativaId={ativaId} carteiras={carteiras} />
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-shrink-0">
                 <BuscaGlobal />
                 <AnonimizarToggle />
                 <AutoSync />

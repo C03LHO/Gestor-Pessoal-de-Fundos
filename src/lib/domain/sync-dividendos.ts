@@ -33,28 +33,47 @@ export async function sincronizarDividendosDoAtivo(
   }
   log.info("sync-divs.fonte_usada", { ticker: ativo.ticker, fonte, total: divs.length, carteiraId: carteiraAlvo });
 
-  // Deduplica por mês (YYYY-MM): cada fonte usa data diferente para a mesma
-  // distribuição (ex-date vs data de pagamento), e o usuário só recebe uma vez.
-  const existentes = new Set(
-    ativo.lancamentos
-      .filter((l) => l.tipo === "DIVIDENDO")
-      .map((l) => l.data.toISOString().slice(0, 7)),
-  );
-
-  const paraCriar: { data: Date; valor: number; valorPorCota: number; cotas: number; key: string }[] = [];
-  for (const d of divs) {
-    const key = d.data.toISOString().slice(0, 7);
-    if (existentes.has(key)) continue;
-    const cotas = cotasNoMomento(ativo.lancamentos, d.data);
-    if (cotas <= 0) continue;
-    paraCriar.push({ data: d.data, valor: d.valor * cotas, valorPorCota: d.valor, cotas, key });
+  // Mapa por mês (YYYY-MM): cada fonte usa convenção de data diferente
+  // (Yahoo ex-date vs Fundamentus data de pagamento), e o usuário só recebe
+  // uma vez por distribuição.
+  const existentesPorMes = new Map<string, typeof ativo.lancamentos[number]>();
+  for (const l of ativo.lancamentos) {
+    if (l.tipo !== "DIVIDENDO") continue;
+    existentesPorMes.set(l.data.toISOString().slice(0, 7), l);
   }
 
-  if (paraCriar.length === 0) return 0;
+  const paraCriar: { data: Date; valor: number; valorPorCota: number; cotas: number; key: string }[] = [];
+  // Atualizações: quando uma compra retroativa entrou, o nº de cotas no dia
+  // do dividendo mudou — temos que recalcular o valor do dividendo existente.
+  const paraAtualizar: { id: string; valorAntigo: number; valorNovo: number; cotas: number; valorPorCota: number }[] = [];
+
+  for (const d of divs) {
+    const key = d.data.toISOString().slice(0, 7);
+    const cotas = cotasNoMomento(ativo.lancamentos, d.data);
+    if (cotas <= 0) continue;
+    const valorEsperado = arred(d.valor * cotas);
+    const existente = existentesPorMes.get(key);
+    if (existente) {
+      // Só atualiza se a diferença for material (>= 1 centavo).
+      if (Math.abs(arred(existente.valorTotal) - valorEsperado) >= 0.01) {
+        paraAtualizar.push({
+          id: existente.id,
+          valorAntigo: existente.valorTotal,
+          valorNovo: valorEsperado,
+          cotas,
+          valorPorCota: d.valor,
+        });
+      }
+      continue;
+    }
+    paraCriar.push({ data: d.data, valor: valorEsperado, valorPorCota: d.valor, cotas, key });
+  }
+
+  if (paraCriar.length === 0 && paraAtualizar.length === 0) return 0;
 
   // Transação atomica: ou tudo entra, ou nada (evita estado parcial em crash).
-  await prisma.$transaction(
-    paraCriar.map((p) =>
+  await prisma.$transaction([
+    ...paraCriar.map((p) =>
       prisma.lancamento.create({
         data: {
           tipo: "DIVIDENDO",
@@ -66,7 +85,23 @@ export async function sincronizarDividendosDoAtivo(
         },
       }),
     ),
-  );
+    ...paraAtualizar.map((u) =>
+      prisma.lancamento.update({
+        where: { id: u.id },
+        data: {
+          valorTotal: u.valorNovo,
+          observacao: `Auto (${fonte}) — ${u.valorPorCota.toFixed(4)}/cota × ${u.cotas} (recalc)`,
+        },
+      }),
+    ),
+  ]);
+
+  if (paraAtualizar.length > 0) {
+    log.info("sync-divs.recalc", {
+      ticker: ativo.ticker,
+      ajustados: paraAtualizar.length,
+    });
+  }
 
   // Push só para dividendos recentes — depois da gravação dar OK
   const seteDias = 7 * 24 * 60 * 60 * 1000;
@@ -80,7 +115,7 @@ export async function sincronizarDividendosDoAtivo(
       }).catch(() => {});
     }
   }
-  return paraCriar.length;
+  return paraCriar.length + paraAtualizar.length;
 }
 
 export async function sincronizarDividendosDeTodos(anos = 5, carteiraId?: string): Promise<number> {
@@ -91,6 +126,10 @@ export async function sincronizarDividendosDeTodos(anos = 5, carteiraId?: string
     total += await sincronizarDividendosDoAtivo(a.id, anos, carteiraAlvo);
   }
   return total;
+}
+
+function arred(v: number): number {
+  return Math.round(v * 100) / 100;
 }
 
 function cotasNoMomento(

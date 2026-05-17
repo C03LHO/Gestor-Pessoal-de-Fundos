@@ -72,7 +72,7 @@ export function CarteiraSwitcher({ ativaId, carteiras }: { ativaId: string; cart
       </button>
 
       {aberto && (
-        <div className="absolute right-0 top-full mt-2 z-40 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl min-w-[240px] overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 z-40 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl min-w-[240px] max-w-[calc(100vw-2rem)] overflow-hidden">{/* mobile fix: limitar largura */}
           <div className="p-1">
             {carteiras.map((c) => (
               <button
@@ -95,7 +95,7 @@ export function CarteiraSwitcher({ ativaId, carteiras }: { ativaId: string; cart
           </div>
           <form onSubmit={criar} className="border-t border-zinc-800 p-2 flex gap-1">
             <input
-              className="input !min-h-0 !py-1.5 !text-sm flex-1"
+              className="input !min-h-[44px] !py-1.5 !text-base flex-1"
               placeholder="Nova carteira..."
               value={novaNome}
               onChange={(e) => setNovaNome(e.target.value)}

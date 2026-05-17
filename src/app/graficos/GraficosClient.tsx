@@ -231,8 +231,8 @@ function CardGrafico({
         </ResponsiveContainer>
       </div>
 
-      {/* Min / Max / Período */}
-      <div className="grid grid-cols-3 gap-2 mt-1 pt-2 border-t border-zinc-800 text-[10px]">
+      {/* Min / Max / Período — mobile fix: 1col em <md */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1 pt-2 border-t border-zinc-800 text-[10px]">
         <div>
           <div className="text-zinc-500">Mín {rangeId.toUpperCase()}</div>
           <div className="text-rose-400 tabular-nums font-medium">{brl(stats.min)}</div>
@@ -364,8 +364,8 @@ function ZoomModal({
         </ResponsiveContainer>
       </div>
 
-      {/* Stats no rodapé */}
-      <div className="grid grid-cols-4 border-t border-zinc-800 shrink-0 bg-zinc-950"
+      {/* Stats no rodapé — mobile fix: 2col em mobile, 4col desktop */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 border-t border-zinc-800 shrink-0 bg-zinc-950"
            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <StatCell label="Atual" valor={brl(s.precoAtual)} />
         <StatCell label="Mín" valor={brl(stats.min)} cor="text-rose-400" />

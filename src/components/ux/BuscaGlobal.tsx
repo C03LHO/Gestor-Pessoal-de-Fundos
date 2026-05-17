@@ -54,8 +54,10 @@ export function BuscaGlobal() {
       </button>
 
       {aberto && (
-        <div className="fixed inset-0 z-[55] bg-black/70 flex items-start justify-center pt-10 md:pt-24 px-4"
-             onClick={() => setAberto(false)}>
+        <div
+          className="fixed inset-0 z-[55] bg-black/70 flex items-start justify-center md:pt-24 px-4"
+          style={{ paddingTop: "max(2.5rem, env(safe-area-inset-top))" }}
+          onClick={() => setAberto(false)}>{/* mobile fix: safe-area-inset-top em vez de pt fixo */}
           <div
             className="bg-zinc-950 border border-zinc-800 rounded-2xl w-full max-w-lg shadow-2xl"
             onClick={(e) => e.stopPropagation()}

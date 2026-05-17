@@ -350,7 +350,8 @@ function MetaEditor({ op, onSalvar, onClose }:
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-1.5">
+          {/* mobile fix: 2col em mobile pra target não ficar apertado */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
             {presets.map((p) => (
               <button
                 key={p}
