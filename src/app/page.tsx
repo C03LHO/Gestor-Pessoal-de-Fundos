@@ -15,6 +15,12 @@ import { gerarInsights } from "@/lib/domain/insights-smart";
 import { calcularOportunidades } from "@/lib/domain/watchlist";
 import { aporteDoMesAtual } from "@/lib/domain/aporte-mes";
 import { proximosDividendos } from "@/lib/domain/proximos-dividendos";
+import {
+  rendaAcumuladaMensal,
+  topPerformersDoMes,
+  evolucaoPatrimonio,
+} from "@/lib/domain/dashboard-extras";
+import { EvolucaoPerformance } from "@/components/dashboard/EvolucaoPerformance";
 import { CalendarClock, Activity, Calendar as CalendarIcon, Award } from "lucide-react";
 import { FiltroPeriodo } from "@/components/layout/FiltroPeriodo";
 import { mesesDoPeriodo, type PeriodoId } from "@/lib/periodo";
@@ -36,7 +42,13 @@ export default async function Dashboard({
   const periodoMeses = mesesDoPeriodo(periodo);
 
   const carteiraId = await getCarteiraAtivaId();
-  const [posicoes, meta, cfg, divMes, serie, previsao, hist, patrSerie, insights, oportunidades, aporteMes, proximos] = await Promise.all([
+  const mesAtualInicio = (() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; })();
+  const mesAnteriorInicio = (() => { const d = new Date(mesAtualInicio); d.setMonth(d.getMonth() - 1); return d; })();
+
+  const [
+    posicoes, meta, cfg, divMes, serie, previsao, hist, patrSerie, insights, oportunidades, aporteMes, proximos,
+    rendaAcum, perfAtual, perfAnterior, evolucao,
+  ] = await Promise.all([
     calcularPosicoes(carteiraId),
     prisma.meta.findFirst({ where: { ativa: true } }),
     prisma.configuracao.findFirst(),
@@ -49,6 +61,10 @@ export default async function Dashboard({
     calcularOportunidades(carteiraId).catch(() => []),
     aporteDoMesAtual(carteiraId),
     proximosDividendos(carteiraId).catch(() => []),
+    rendaAcumuladaMensal(carteiraId),
+    topPerformersDoMes(carteiraId, mesAtualInicio),
+    topPerformersDoMes(carteiraId, mesAnteriorInicio),
+    evolucaoPatrimonio(carteiraId, 120), // série máxima (até 10a) — UI fatia
   ]);
 
   // Stats extras
@@ -439,14 +455,24 @@ export default async function Dashboard({
         </section>
       )}
 
-      {/* Patrimônio histórico */}
+      {/* Patrimônio histórico (legado — versão simples) */}
       {patrSerie.length > 0 && (
         <section className="card">
-          <h2 className="font-semibold text-sm md:text-base mb-1">Evolução do patrimônio</h2>
+          <h2 className="font-semibold text-sm md:text-base mb-1">Patrimônio recente</h2>
           <p className="text-[11px] md:text-xs text-zinc-500 mb-3">Mês a mês — últimos 12 meses</p>
           <PatrimonioChart data={patrSerie} />
         </section>
       )}
+
+      {/* ===== Nova seção: Evolução & Performance ===== */}
+      <EvolucaoPerformance
+        renda={rendaAcum}
+        performersAtual={perfAtual}
+        performersAnterior={perfAnterior}
+        evolucao={evolucao}
+        evolucaoMaxMeses={evolucao.serie.length}
+      />
+      {/* ============================================ */}
 
       {/* Previsão */}
       {previsao.itens.length > 0 && (
