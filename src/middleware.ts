@@ -5,6 +5,7 @@ const CAMINHOS_PUBLICOS = new Set([
   "/api/auth/login",
   "/api/auth/logout",
   "/api/auth/version",
+  "/api/health",
   "/sw.js",
   "/offline.html",
 ]);
