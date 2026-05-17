@@ -15,11 +15,12 @@ let aplicado = false;
 export async function aplicarPragmasSqlite() {
   if (aplicado) return;
   try {
-    await prisma.$executeRawUnsafe("PRAGMA journal_mode=WAL");
+    // journal_mode retorna uma linha com o modo aplicado — usa $queryRawUnsafe.
+    const modo = await prisma.$queryRawUnsafe<Array<{ journal_mode: string }>>("PRAGMA journal_mode=WAL");
     await prisma.$executeRawUnsafe("PRAGMA synchronous=NORMAL");
     await prisma.$executeRawUnsafe("PRAGMA busy_timeout=5000");
     aplicado = true;
-    log.info("db.pragmas_aplicados", { wal: true });
+    log.info("db.pragmas_aplicados", { journal_mode: modo?.[0]?.journal_mode });
   } catch (e: any) {
     log.warn("db.pragmas_falhou", { erro: e?.message });
   }

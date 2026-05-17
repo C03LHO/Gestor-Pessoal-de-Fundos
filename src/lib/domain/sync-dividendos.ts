@@ -2,6 +2,7 @@ import { prisma } from "../prisma";
 import { buscarDividendosConfigurado } from "../mercado/dividendos";
 import { enviarParaTodos } from "../push";
 import { log } from "../log";
+import { getCarteiraAtivaId } from "../carteira";
 
 /**
  * Importa todos os dividendos disponíveis para um ativo (até `anos` atrás),
@@ -10,10 +11,18 @@ import { log } from "../log";
  * Não duplica datas já existentes.
  * Retorna quantos foram importados.
  */
-export async function sincronizarDividendosDoAtivo(ativoId: string, anos = 10): Promise<number> {
+export async function sincronizarDividendosDoAtivo(
+  ativoId: string,
+  anos = 10,
+  carteiraId?: string,
+): Promise<number> {
+  // Resolve a carteira-alvo (default: ativa). Sem isso o lançamento DIVIDENDO
+  // fica sem carteiraId e a página Lançamentos (que filtra por carteira) não mostra.
+  const carteiraAlvo = carteiraId ?? (await getCarteiraAtivaId());
+
   const ativo = await prisma.ativo.findUnique({
     where: { id: ativoId },
-    include: { lancamentos: true },
+    include: { lancamentos: { where: { carteiraId: carteiraAlvo } } },
   });
   if (!ativo) return 0;
 
@@ -22,7 +31,7 @@ export async function sincronizarDividendosDoAtivo(ativoId: string, anos = 10): 
     log.warn("sync-divs.sem_dados", { ticker: ativo.ticker });
     return 0;
   }
-  log.info("sync-divs.fonte_usada", { ticker: ativo.ticker, fonte, total: divs.length });
+  log.info("sync-divs.fonte_usada", { ticker: ativo.ticker, fonte, total: divs.length, carteiraId: carteiraAlvo });
 
   const existentes = new Set(
     ativo.lancamentos
@@ -49,6 +58,7 @@ export async function sincronizarDividendosDoAtivo(ativoId: string, anos = 10): 
         data: {
           tipo: "DIVIDENDO",
           ativoId: ativo.id,
+          carteiraId: carteiraAlvo,
           data: p.data,
           valorTotal: p.valor,
           observacao: `Auto (${fonte}) — ${p.valorPorCota.toFixed(4)}/cota × ${p.cotas}`,
@@ -72,11 +82,12 @@ export async function sincronizarDividendosDoAtivo(ativoId: string, anos = 10): 
   return paraCriar.length;
 }
 
-export async function sincronizarDividendosDeTodos(anos = 5): Promise<number> {
+export async function sincronizarDividendosDeTodos(anos = 5, carteiraId?: string): Promise<number> {
+  const carteiraAlvo = carteiraId ?? (await getCarteiraAtivaId());
   const ativos = await prisma.ativo.findMany({ select: { id: true } });
   let total = 0;
   for (const a of ativos) {
-    total += await sincronizarDividendosDoAtivo(a.id, anos);
+    total += await sincronizarDividendosDoAtivo(a.id, anos, carteiraAlvo);
   }
   return total;
 }

@@ -18,12 +18,13 @@ export async function POST(req: NextRequest) {
   try { body = req.body ? schema.parse(await req.json()) : {}; } catch {}
   const anos = body.anos ?? 10;
 
+  const carteiraId = await getCarteiraAtivaId();
+
   if (body.ativoId) {
-    const importados = await sincronizarDividendosDoAtivo(body.ativoId, anos);
+    const importados = await sincronizarDividendosDoAtivo(body.ativoId, anos, carteiraId);
     return NextResponse.json({ importados, detalhes: null });
   }
 
-  const carteiraId = await getCarteiraAtivaId();
   const ativos = await prisma.ativo.findMany({
     where: { lancamentos: { some: { carteiraId } } },
     select: { id: true, ticker: true },
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
   let total = 0;
   for (const a of ativos) {
     try {
-      const n = await sincronizarDividendosDoAtivo(a.id, anos);
+      const n = await sincronizarDividendosDoAtivo(a.id, anos, carteiraId);
       detalhes.push({ ticker: a.ticker, importados: n });
       total += n;
     } catch (e: any) {
