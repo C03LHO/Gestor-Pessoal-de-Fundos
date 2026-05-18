@@ -38,6 +38,30 @@ main > div { animation: fadeIn 0.25s ease-out; }
 }
 .animate-toast { animation: toast 0.2s ease-out; }
 
+/* ------- Modal expandido do gráfico (ChartExpandedModal) ------- */
+@keyframes chart-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes chart-panel-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);     }
+}
+.chart-modal-backdrop {
+  animation: chart-backdrop-in 0.18s ease-out;
+}
+.chart-modal-panel {
+  animation: chart-panel-in 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
+  transform-origin: center center;
+}
+/* Mobile: animação mais sutil pra não atrapalhar a fluidez */
+@media (max-width: 767px) {
+  .chart-modal-panel {
+    animation: chart-backdrop-in 0.18s ease-out;
+    transform: none;
+  }
+}
+
 /* Skeleton */
 @keyframes skel {
   0% { background-position: -200% 0; }

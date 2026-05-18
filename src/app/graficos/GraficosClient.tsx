@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -8,12 +7,13 @@ import {
 } from "recharts";
 import { brl, pct } from "@/lib/format";
 import { cn } from "@/lib/cn";
-import { ChevronRight, Loader2, Maximize2, X, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { ChevronRight, Loader2, Maximize2, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import {
   CHART_COLORS, GRID_PROPS, TOOLTIP_CONTENT_STYLE, TOOLTIP_LABEL_STYLE,
-  TOOLTIP_ITEM_STYLE, TOOLTIP_CURSOR, ACTIVE_DOT_PROPS, REF_DOT_HIGHLIGHT,
+  TOOLTIP_ITEM_STYLE, TOOLTIP_CURSOR, ACTIVE_DOT_PROPS,
   gradientStops,
 } from "@/lib/chart-theme";
+import { ChartExpandedModal } from "@/components/charts/ChartExpandedModal";
 
 type Serie = {
   ticker: string;
@@ -97,13 +97,19 @@ export function GraficosClient() {
         </div>
       )}
 
-      {zoom && (
-        <ZoomModal
-          item={zoom} rangeAtual={range}
-          onClose={() => setZoom(null)}
-          onTrocarRange={(r) => setRange(r)}
-        />
-      )}
+      <ChartExpandedModal
+        open={!!zoom}
+        onClose={() => setZoom(null)}
+        ticker={zoom?.ticker ?? ""}
+        subtitulo={zoom?.notas ?? null}
+        precoAtual={zoom?.serie?.precoAtual ?? 0}
+        variacao={zoom?.serie?.variacao ?? 0}
+        pontos={zoom?.serie?.pontos ?? []}
+        periodos={[...PERIODOS]}
+        rangeAtual={range}
+        onTrocarRange={(r) => setRange(r as RangeId)}
+        formatarData={formatarData}
+      />
     </div>
   );
 }
@@ -274,219 +280,6 @@ function ticksX(pontos: { t: number; p: number }[], n: number): number[] {
   return out;
 }
 
-function ZoomModal({
-  item, rangeAtual, onClose, onTrocarRange,
-}: {
-  item: Item; rangeAtual: RangeId; onClose: () => void; onTrocarRange: (r: RangeId) => void;
-}) {
-  const [montado, setMontado] = useState(false);
-
-  useEffect(() => {
-    // SSR-safe: portal só após mount no cliente
-    setMontado(true);
-    const origOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onEsc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onEsc);
-    return () => {
-      document.body.style.overflow = origOverflow;
-      window.removeEventListener("keydown", onEsc);
-    };
-  }, [onClose]);
-
-  if (!montado) return null;
-
-  const s = item.serie;
-  if (!s) return null;
-  const stats = calcularStats(s.pontos);
-  const positivo = s.variacao >= 0;
-  const cor = corVariacao(s.variacao);
-
-  const modal = (
-    <>
-      {/* Backdrop separado — clicável pra fechar */}
-      <div
-        className="fixed inset-0 z-[9998] bg-black/85 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Painel: fullscreen no mobile, centralizado no desktop */}
-      <div
-        className={cn(
-          "fixed z-[9999] flex flex-col bg-zinc-950 overflow-hidden",
-          // Mobile (default): 100vw × 100dvh
-          "inset-0",
-          // Desktop md+: centralizado com cantos arredondados, sombra forte
-          "md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2",
-          "md:w-[min(92vw,1200px)] md:h-[min(90vh,800px)]",
-          "md:rounded-2xl md:border md:border-zinc-800",
-          "md:shadow-[0_25px_70px_-10px_rgba(0,0,0,0.7),0_8px_20px_-5px_rgba(0,0,0,0.5)]",
-        )}
-        role="dialog"
-        aria-modal="true"
-        onClick={(e) => e.stopPropagation()}
-      >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 md:px-6 border-b border-zinc-800 shrink-0"
-           style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))", paddingBottom: "0.75rem" }}>
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={onClose}
-            className="text-zinc-300 hover:text-zinc-100 -ml-2 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg active:bg-zinc-800"
-            aria-label="Fechar"
-          >
-            <X size={22} />
-          </button>
-          <div className="min-w-0">
-            <div className="font-semibold text-lg leading-tight">{item.ticker}</div>
-            {item.notas && (
-              <div className="text-[10px] md:text-xs text-zinc-500 truncate max-w-[200px] md:max-w-[400px]">
-                {item.notas}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="text-right shrink-0">
-          <div className="text-xl md:text-2xl font-semibold tabular-nums">{brl(s.precoAtual)}</div>
-          <div className="text-sm md:text-base font-medium tabular-nums" style={{ color: cor }}>
-            {positivo ? "+" : ""}{pct(s.variacao)}
-          </div>
-        </div>
-      </div>
-
-      {/* Seletor de período dentro do modal */}
-      <div className="px-4 md:px-6 py-3 border-b border-zinc-800 shrink-0 overflow-x-auto">
-        <div className="inline-flex gap-1 p-1 bg-zinc-900 border border-zinc-800 rounded-lg">
-          {PERIODOS.map((p) => (
-            <button
-              key={p.id} onClick={() => onTrocarRange(p.id)}
-              className={cn(
-                "px-3 py-1.5 text-xs md:text-sm font-medium rounded whitespace-nowrap transition",
-                rangeAtual === p.id
-                  ? "bg-zinc-700 text-white"
-                  : "text-zinc-400 hover:text-zinc-100",
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Gráfico grande */}
-      <div className="flex-1 p-4 md:p-6 overflow-hidden">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={s.pontos} margin={{ top: 10, right: 24, left: 0, bottom: 10 }}>
-            <defs>
-              <linearGradient id={`gz-${item.ticker}`} x1="0" y1="0" x2="0" y2="1">
-                {gradientStops(cor).map((sp, i) => <stop key={i} {...sp} />)}
-              </linearGradient>
-            </defs>
-            <CartesianGrid {...GRID_PROPS} />
-            <XAxis
-              dataKey="t"
-              type="number"
-              domain={["dataMin", "dataMax"]}
-              stroke={CHART_COLORS.textFaint}
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
-              tick={{ fill: CHART_COLORS.textMuted }}
-              tickFormatter={(t: number) => formatarData(t, rangeAtual, true)}
-              minTickGap={32}
-            />
-            <YAxis
-              stroke={CHART_COLORS.textFaint}
-              fontSize={11}
-              tickLine={false}
-              axisLine={false}
-              tick={{ fill: CHART_COLORS.textMuted }}
-              width={76}
-              domain={["dataMin - dataMin*0.01", "dataMax + dataMax*0.01"]}
-              tickFormatter={(v: number) => brl(v).replace("R$ ", "R$")}
-            />
-            <Tooltip
-              contentStyle={TOOLTIP_CONTENT_STYLE}
-              labelStyle={TOOLTIP_LABEL_STYLE}
-              itemStyle={TOOLTIP_ITEM_STYLE}
-              labelFormatter={(t: number) => formatarData(t, rangeAtual)}
-              formatter={(v: number) => [brl(v), "Preço"]}
-              cursor={{ ...TOOLTIP_CURSOR, stroke: cor, strokeOpacity: 0.7 }}
-            />
-            <ReferenceLine
-              y={s.precoAtual}
-              stroke={cor} strokeDasharray="4 4" strokeOpacity={0.7} strokeWidth={1.3}
-              label={{ value: "Atual", fill: cor, fontSize: 11, position: "right", fontWeight: 600 }}
-            />
-            <ReferenceLine
-              y={stats.max}
-              stroke={COR_UP} strokeDasharray="2 5" strokeOpacity={0.55} strokeWidth={1.3}
-              label={{
-                value: `Máx ${brl(stats.max)}`,
-                fill: COR_UP, fontSize: 11, fontWeight: 500, position: "right",
-              }}
-            />
-            <ReferenceLine
-              y={stats.min}
-              stroke={COR_DOWN} strokeDasharray="2 5" strokeOpacity={0.55} strokeWidth={1.3}
-              label={{
-                value: `Mín ${brl(stats.min)}`,
-                fill: COR_DOWN, fontSize: 11, fontWeight: 500, position: "right",
-              }}
-            />
-            <Area
-              type="monotone" dataKey="p"
-              stroke={cor} strokeWidth={3}
-              fill={`url(#gz-${item.ticker})`}
-              activeDot={{ ...ACTIVE_DOT_PROPS, r: 6, fill: cor, stroke: "#fff", strokeWidth: 2 }}
-              isAnimationActive
-              animationDuration={400}
-            />
-            <ReferenceDot
-              x={stats.tMax} y={stats.max}
-              fill={COR_UP} {...REF_DOT_HIGHLIGHT}
-            />
-            <ReferenceDot
-              x={stats.tMin} y={stats.min}
-              fill={COR_DOWN} {...REF_DOT_HIGHLIGHT}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* KPIs no rodapé — 2col mobile, 4col desktop */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 border-t border-zinc-800 shrink-0 bg-zinc-950/95"
-           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-        <StatCell label="Atual" valor={brl(s.precoAtual)} />
-        <StatCell label="Mín" valor={brl(stats.min)} corValor={COR_DOWN} />
-        <StatCell label="Máx" valor={brl(stats.max)} corValor={COR_UP} />
-        <StatCell label="Variação"
-                  valor={`${positivo ? "+" : ""}${pct(s.variacao)}`}
-                  corValor={cor} />
-      </div>
-      </div>{/* fim painel */}
-    </>
-  );
-
-  // Render via Portal: vira filho direto do <body>, escapa de qualquer
-  // containing block/stacking context herdado do <main>.
-  return createPortal(modal, document.body);
-}
-
-function StatCell({ label, valor, corValor }: { label: string; valor: string; corValor?: string }) {
-  return (
-    <div className="text-center py-3 md:py-4 border-r border-zinc-800 last:border-r-0">
-      <div className="text-[10px] uppercase tracking-wider text-zinc-500">{label}</div>
-      <div
-        className="text-sm md:text-base font-semibold tabular-nums mt-0.5"
-        style={corValor ? { color: corValor } : undefined}
-      >
-        {valor}
-      </div>
-    </div>
-  );
-}
 
 function calcularStats(pontos: { t: number; p: number }[]) {
   let max = -Infinity, min = Infinity, tMax = 0, tMin = 0;
