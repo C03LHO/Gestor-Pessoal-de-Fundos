@@ -117,9 +117,47 @@ model Carteira {
   id        String   @id @default(cuid())
   nome      String   @unique
   cor       String?
+  tipo      String   @default("FII") // "FII" | "CRIPTO"
   criadaEm  DateTime @default(now())
 
-  lancamentos Lancamento[]
+  lancamentos        Lancamento[]
+  cryptoTransactions CryptoTransaction[]
+}
+
+model CryptoTransaction {
+  id          String   @id @default(cuid())
+  tipo        String   // COMPRA | VENDA
+  data        DateTime
+  cryptoId    String   // bitcoin | kaspa | grin | ethereum-classic
+  carteiraId  String
+  carteira    Carteira @relation(fields: [carteiraId], references: [id], onDelete: Cascade)
+
+  quantidade  Float
+  precoUnit   Float    // em BRL
+  valorTotal  Float    // em BRL (quantidade * precoUnit, ou taxa manual)
+
+  observacao  String?
+  criadoEm    DateTime @default(now())
+
+  @@index([carteiraId, data])
+  @@index([carteiraId, cryptoId, data])
+  @@index([cryptoId])
+}
+
+model CryptoPriceCache {
+  cryptoId      String   @id // bitcoin | kaspa | grin | ethereum-classic
+  precoBrl      Float
+  precoUsd      Float?
+  variacao24h   Float?   // %
+  atualizadoEm  DateTime @default(now())
+}
+
+model CryptoHistoryCache {
+  cryptoId      String   @id
+  moeda         String   @default("brl")
+  // pontos serializados como JSON: [{ t: epoch_ms, p: number }, ...]
+  pontosJson    String
+  atualizadoEm  DateTime @default(now())
 }
 
 model WatchlistAtivo {

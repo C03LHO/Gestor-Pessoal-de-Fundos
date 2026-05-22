@@ -9,7 +9,7 @@ import { RegistrarSW } from "@/components/ux/RegistrarSW";
 import { ToastProvider } from "@/components/ux/Toast";
 import { CarteiraSwitcher } from "@/components/layout/CarteiraSwitcher";
 import { validarSessao } from "@/lib/auth-guard";
-import { getCarteiraAtivaId, listarCarteiras } from "@/lib/carteira";
+import { getCarteiraAtiva, listarCarteiras } from "@/lib/carteira";
 
 export const metadata = {
   title: "Fundos — Gestão de FIIs",
@@ -42,7 +42,7 @@ export const viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   await validarSessao();
-  const ativaId = await getCarteiraAtivaId();
+  const { id: ativaId, tipo } = await getCarteiraAtiva();
   const carteiras = await listarCarteiras();
 
   return (
@@ -55,7 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <RegistrarSW />
         <PullToRefresh />
         <div className="flex">
-          <Sidebar />
+          <Sidebar tipo={tipo} />
           <main
             className="flex-1 p-4 md:p-10 pb-28 md:pb-10 max-w-7xl mx-auto w-full"
             style={{
@@ -75,7 +75,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             {children}
           </main>
         </div>
-        <BottomNav />
+        <BottomNav tipo={tipo} />
         </ToastProvider>
       </body>
     </html>

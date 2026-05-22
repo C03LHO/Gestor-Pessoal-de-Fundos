@@ -29,3 +29,14 @@ export async function getCarteiraAtivaId(): Promise<string> {
 export async function listarCarteiras() {
   return prisma.carteira.findMany({ orderBy: { criadaEm: "asc" } });
 }
+
+/**
+ * Devolve { id, tipo } da carteira ativa. Tipo é "FII" | "CRIPTO".
+ * Usado pelo layout para decidir qual navegação renderizar.
+ */
+export async function getCarteiraAtiva(): Promise<{ id: string; tipo: "FII" | "CRIPTO" }> {
+  const id = await getCarteiraAtivaId();
+  const c = await prisma.carteira.findUnique({ where: { id }, select: { tipo: true } });
+  const tipo = (c?.tipo === "CRIPTO" ? "CRIPTO" : "FII") as "FII" | "CRIPTO";
+  return { id, tipo };
+}

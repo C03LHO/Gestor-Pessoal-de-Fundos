@@ -4,18 +4,18 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Wallet, ListPlus, TrendingDown, MoreHorizontal,
-  Target, Calculator, FileText, BarChart3, Settings, X, CalendarDays, Sparkles, Map, LineChart,
+  Target, Calculator, FileText, BarChart3, Settings, X, CalendarDays, LineChart, Coins,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
-const principais = [
+const principaisFii = [
   { href: "/",              label: "Início",    icon: LayoutDashboard },
   { href: "/oportunidades", label: "Oport.",    icon: TrendingDown },
   { href: "/graficos",      label: "Gráficos",  icon: LineChart },
   { href: "/carteira",      label: "Carteira",  icon: Wallet },
 ];
 
-const secundarios = [
+const secundariosFii = [
   { href: "/lancamentos",   label: "Lançamentos",   icon: ListPlus },
   { href: "/resumo",        label: "Resumo",        icon: BarChart3 },
   { href: "/calendario",    label: "Calendário",    icon: CalendarDays },
@@ -25,9 +25,23 @@ const secundarios = [
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
-export function BottomNav() {
+const principaisCripto = [
+  { href: "/cripto",               label: "Início",    icon: LayoutDashboard },
+  { href: "/cripto/oportunidades", label: "Oport.",    icon: TrendingDown },
+  { href: "/cripto/graficos",      label: "Gráficos",  icon: LineChart },
+  { href: "/cripto/carteira",      label: "Carteira",  icon: Coins },
+];
+
+const secundariosCripto = [
+  { href: "/cripto/lancamentos",   label: "Lançamentos",   icon: ListPlus },
+  { href: "/configuracoes",        label: "Configurações", icon: Settings },
+];
+
+export function BottomNav({ tipo = "FII" }: { tipo?: "FII" | "CRIPTO" }) {
   const p = usePathname();
   const [aberto, setAberto] = useState(false);
+  const principais = tipo === "CRIPTO" ? principaisCripto : principaisFii;
+  const secundarios = tipo === "CRIPTO" ? secundariosCripto : secundariosFii;
 
   return (
     <>
@@ -35,7 +49,10 @@ export function BottomNav() {
            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="grid grid-cols-5">
           {principais.map(({ href, label, icon: Icon }) => {
-            const ativo = href === "/" ? p === "/" : p.startsWith(href);
+            const ativo =
+              href === "/" ? p === "/" :
+              href === "/cripto" ? p === "/cripto" :
+              p.startsWith(href);
             return (
               <Link key={href} href={href}
                 className={cn(

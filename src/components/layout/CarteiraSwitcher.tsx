@@ -1,16 +1,17 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Plus, Wallet, LogOut } from "lucide-react";
+import { ChevronDown, Plus, Wallet, LogOut, Coins } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { haptic } from "@/lib/ux/haptic";
 
-type Carteira = { id: string; nome: string; cor: string | null };
+type Carteira = { id: string; nome: string; cor: string | null; tipo?: string | null };
 
 export function CarteiraSwitcher({ ativaId, carteiras }: { ativaId: string; carteiras: Carteira[] }) {
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [novaNome, setNovaNome] = useState("");
+  const [novoTipo, setNovoTipo] = useState<"FII" | "CRIPTO">("FII");
   const [criando, setCriando] = useState(false);
   const ativa = carteiras.find((c) => c.id === ativaId) ?? carteiras[0];
 
@@ -31,7 +32,14 @@ export function CarteiraSwitcher({ ativaId, carteiras }: { ativaId: string; cart
       body: JSON.stringify({ id }),
     });
     setAberto(false);
-    router.refresh();
+    const alvo = carteiras.find((c) => c.id === id);
+    const tipoAlvo = (alvo?.tipo === "CRIPTO" ? "CRIPTO" : "FII") as "FII" | "CRIPTO";
+    const tipoAtual = (ativa?.tipo === "CRIPTO" ? "CRIPTO" : "FII") as "FII" | "CRIPTO";
+    if (tipoAlvo !== tipoAtual) {
+      window.location.href = tipoAlvo === "CRIPTO" ? "/cripto" : "/";
+    } else {
+      router.refresh();
+    }
   }
 
   async function criar(e: React.FormEvent) {
@@ -42,7 +50,7 @@ export function CarteiraSwitcher({ ativaId, carteiras }: { ativaId: string; cart
       const r = await fetch("/api/carteiras", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome: novaNome.trim() }),
+        body: JSON.stringify({ nome: novaNome.trim(), tipo: novoTipo }),
       });
       if (!r.ok) { alert(await r.text()); return; }
       const nova = await r.json();
@@ -57,6 +65,8 @@ export function CarteiraSwitcher({ ativaId, carteiras }: { ativaId: string; cart
     window.location.href = "/login";
   }
 
+  const tipoAtiva = (ativa?.tipo === "CRIPTO" ? "CRIPTO" : "FII") as "FII" | "CRIPTO";
+
   return (
     <div className="relative" data-carteira-menu>
       <button
@@ -68,43 +78,70 @@ export function CarteiraSwitcher({ ativaId, carteiras }: { ativaId: string; cart
           style={{ background: ativa?.cor ?? "#10b981" }}
         />
         <span className="text-sm font-medium truncate max-w-[100px]">{ativa?.nome ?? "—"}</span>
+        {tipoAtiva === "CRIPTO" && (
+          <span className="text-[9px] font-semibold px-1 py-[1px] rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 leading-none">
+            CRIPTO
+          </span>
+        )}
         <ChevronDown size={12} className="text-zinc-500" />
       </button>
 
       {aberto && (
-        <div className="absolute right-0 top-full mt-2 z-40 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl min-w-[240px] max-w-[calc(100vw-2rem)] overflow-hidden">{/* mobile fix: limitar largura */}
+        <div className="absolute right-0 top-full mt-2 z-40 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl min-w-[260px] max-w-[calc(100vw-2rem)] overflow-hidden">
           <div className="p-1">
-            {carteiras.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => trocar(c.id)}
-                className={cn(
-                  "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-zinc-800 active:bg-zinc-800",
-                  c.id === ativaId && "bg-zinc-800/50 text-white",
-                )}
-              >
-                <Wallet size={14} className="text-zinc-500" />
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ background: c.cor ?? "#10b981" }}
-                />
-                <span className="flex-1 text-left truncate">{c.nome}</span>
-                {c.id === ativaId && <span className="text-[10px] text-emerald-400">atual</span>}
-              </button>
-            ))}
+            {carteiras.map((c) => {
+              const cripto = c.tipo === "CRIPTO";
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => trocar(c.id)}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-zinc-800 active:bg-zinc-800",
+                    c.id === ativaId && "bg-zinc-800/50 text-white",
+                  )}
+                >
+                  {cripto ? <Coins size={14} className="text-amber-400" /> : <Wallet size={14} className="text-zinc-500" />}
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ background: c.cor ?? "#10b981" }}
+                  />
+                  <span className="flex-1 text-left truncate">{c.nome}</span>
+                  {cripto && (
+                    <span className="text-[9px] font-semibold px-1 py-[1px] rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 leading-none">
+                      CRIPTO
+                    </span>
+                  )}
+                  {c.id === ativaId && <span className="text-[10px] text-emerald-400">atual</span>}
+                </button>
+              );
+            })}
           </div>
-          <form onSubmit={criar} className="border-t border-zinc-800 p-2 flex gap-1">
-            <input
-              className="input !min-h-[44px] !py-1.5 !text-base flex-1"
-              placeholder="Nova carteira..."
-              value={novaNome}
-              onChange={(e) => setNovaNome(e.target.value)}
-              maxLength={40}
-            />
-            <button type="submit" disabled={criando || !novaNome.trim()}
-                    className="px-2 rounded-lg bg-emerald-500 text-zinc-950 disabled:opacity-40">
-              <Plus size={14} />
-            </button>
+          <form onSubmit={criar} className="border-t border-zinc-800 p-2 flex flex-col gap-1">
+            <div className="flex gap-1">
+              <input
+                className="input !min-h-[44px] !py-1.5 !text-base flex-1"
+                placeholder="Nova carteira..."
+                value={novaNome}
+                onChange={(e) => setNovaNome(e.target.value)}
+                maxLength={40}
+              />
+              <button type="submit" disabled={criando || !novaNome.trim()}
+                      className="px-2 rounded-lg bg-emerald-500 text-zinc-950 disabled:opacity-40">
+                <Plus size={14} />
+              </button>
+            </div>
+            <div className="flex gap-1 text-[11px]">
+              <button type="button" onClick={() => setNovoTipo("FII")}
+                className={cn("flex-1 px-2 py-1 rounded border",
+                  novoTipo === "FII" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : "border-zinc-800 text-zinc-400")}>
+                FII
+              </button>
+              <button type="button" onClick={() => setNovoTipo("CRIPTO")}
+                className={cn("flex-1 px-2 py-1 rounded border",
+                  novoTipo === "CRIPTO" ? "border-amber-500/40 bg-amber-500/10 text-amber-300" : "border-zinc-800 text-zinc-400")}>
+                Cripto
+              </button>
+            </div>
           </form>
           <button
             onClick={logoutAll}
