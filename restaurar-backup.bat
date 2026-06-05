@@ -29,6 +29,16 @@ taskkill /F /IM node.exe 2>nul
 REM Backup do atual (just in case)
 if exist data.db copy /Y data.db "backups\data-antes-restore-%RANDOM%.db" >nul
 
+REM Remove WAL/SHM antigos ANTES de restaurar: senao o SQLite pode reaplicar
+REM o journal velho por cima do banco restaurado e corromper o estado.
+if exist data.db-wal del /F /Q data.db-wal
+if exist data.db-shm del /F /Q data.db-shm
+
 copy /Y "backups\%ARQUIVO%" data.db >nul
+
+REM Garante que nao sobrou WAL/SHM apontando para o banco anterior.
+if exist data.db-wal del /F /Q data.db-wal
+if exist data.db-shm del /F /Q data.db-shm
+
 echo Banco restaurado. Suba o servidor com start-fundos.bat
 pause

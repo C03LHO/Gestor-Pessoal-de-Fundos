@@ -4,6 +4,7 @@ import { Fingerprint, Trash2 } from "lucide-react";
 import { startRegistration, startAuthentication } from "@simplewebauthn/browser";
 import { useToast } from "@/components/ux/Toast";
 import { dataBR } from "@/lib/format";
+import { mensagemErro } from "@/lib/erro-api";
 
 type Passkey = { id: string; rotulo: string | null; criadoEm: string; ultimoUsoEm: string | null };
 
@@ -57,7 +58,7 @@ export function PasskeyManager() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ challengeId, response: attResp, rotulo }),
       });
-      if (!r.ok) { toast("erro", await r.text()); return; }
+      if (!r.ok) { toast("erro", await mensagemErro(r)); return; }
       toast("sucesso", "Passkey criado");
       await carregar();
     } catch (e: any) {

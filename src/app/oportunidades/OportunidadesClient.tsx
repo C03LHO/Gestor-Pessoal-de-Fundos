@@ -6,6 +6,7 @@ import { Plus, Trash2, Target, X, Pencil, ChevronDown, AlertTriangle } from "luc
 import { brl, num, pct } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ux/Toast";
+import { mensagemErro } from "@/lib/erro-api";
 import type { Valuation, ClasseValuation } from "@/lib/domain/valuation";
 
 type Op = {
@@ -73,7 +74,7 @@ export function OportunidadesClient({ oportunidades }: { oportunidades: Op[] }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticker: novoTicker.trim().toUpperCase() }),
       });
-      if (!r.ok) { toast("erro", await r.text()); return; }
+      if (!r.ok) { toast("erro", await mensagemErro(r)); return; }
       toast("sucesso", `${novoTicker.toUpperCase()} adicionado`);
       setNovoTicker("");
       router.refresh();
@@ -89,7 +90,7 @@ export function OportunidadesClient({ oportunidades }: { oportunidades: Op[] }) 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ metaInvestimento: valor }),
     });
-    if (!r.ok) { toast("erro", await r.text()); return; }
+    if (!r.ok) { toast("erro", await mensagemErro(r)); return; }
     toast("sucesso", `Meta de ${ticker} atualizada para ${brl(valor)}`);
     setEditandoMeta(null);
     router.refresh();

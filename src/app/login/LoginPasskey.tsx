@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Fingerprint } from "lucide-react";
 import { startAuthentication } from "@simplewebauthn/browser";
+import { mensagemErro } from "@/lib/erro-api";
 
 export function LoginPasskey() {
   const [suporta, setSuporta] = useState(false);
@@ -21,7 +22,7 @@ export function LoginPasskey() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ challengeId, response: auth }),
       });
-      if (!r.ok) { alert("Falha: " + (await r.text())); return; }
+      if (!r.ok) { alert("Falha: " + (await mensagemErro(r))); return; }
       window.location.href = "/";
     } catch (e: any) {
       if (e?.name === "NotAllowedError") return; // user cancelou

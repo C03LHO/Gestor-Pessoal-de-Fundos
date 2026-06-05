@@ -7,6 +7,7 @@ import { useToast } from "@/components/ux/Toast";
 import { PushManager } from "@/components/ux/PushManager";
 import { PasskeyManager } from "@/components/ux/PasskeyManager";
 import { BackupCloud } from "@/components/ux/BackupCloud";
+import { mensagemErro } from "@/lib/erro-api";
 
 type Cfg = {
   id: string;
@@ -332,7 +333,7 @@ function CarteiraItem({ c, podeRemover, onChange }:
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nome, cor }),
     });
-    if (!r.ok) { toast("erro", await r.text()); return; }
+    if (!r.ok) { toast("erro", await mensagemErro(r)); return; }
     setEditando(false);
     toast("sucesso", "Carteira atualizada");
     onChange();
@@ -341,7 +342,7 @@ function CarteiraItem({ c, podeRemover, onChange }:
   async function excluir() {
     if (!confirm(`Excluir carteira "${c.nome}"? Os lançamentos serão preservados sem vínculo.`)) return;
     const r = await fetch(`/api/carteiras/${c.id}`, { method: "DELETE" });
-    if (!r.ok) { toast("erro", await r.text()); return; }
+    if (!r.ok) { toast("erro", await mensagemErro(r)); return; }
     toast("sucesso", "Carteira excluída");
     onChange();
   }

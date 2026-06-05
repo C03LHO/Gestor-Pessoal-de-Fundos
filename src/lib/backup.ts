@@ -139,6 +139,15 @@ export async function executarBackup(): Promise<{
   const arquivo = `data-${stamp}.db`;
   const destino = `${cfg.backupRemote}/${arquivo}`;
 
+  // Em modo WAL, escritas recentes ficam no arquivo -wal. Sem um checkpoint,
+  // a cópia do data.db pode não conter os últimos commits. TRUNCATE move tudo
+  // para o arquivo principal antes de copiar.
+  try {
+    await prisma.$executeRawUnsafe("PRAGMA wal_checkpoint(TRUNCATE)");
+  } catch (e: any) {
+    log.warn("backup.checkpoint_falhou", { erro: e?.message });
+  }
+
   try {
     await execBin(bin, [
       "copyto", dbPath, destino,

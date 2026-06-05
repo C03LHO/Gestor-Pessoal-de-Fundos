@@ -56,7 +56,7 @@ export default async function Dashboard({
     dividendosPorMes(Math.min(periodoMeses, 24) - 1, carteiraId),
     previsaoProximoMes(carteiraId),
     historicoAportes(Math.min(periodoMeses, 24), carteiraId),
-    patrimonioHistorico(Math.min(periodoMeses, 24)),
+    patrimonioHistorico(Math.min(periodoMeses, 24), carteiraId),
     gerarInsights(carteiraId),
     calcularOportunidades(carteiraId).catch(() => []),
     aporteDoMesAtual(carteiraId),

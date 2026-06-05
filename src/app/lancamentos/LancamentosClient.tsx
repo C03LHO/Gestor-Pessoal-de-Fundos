@@ -6,6 +6,7 @@ import { brl, dataBR } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { haptic } from "@/lib/ux/haptic";
 import { useToast } from "@/components/ux/Toast";
+import { mensagemErro } from "@/lib/erro-api";
 
 type Ativo = {
   id: string;
@@ -576,7 +577,7 @@ function LancamentoDialog({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ticker: t }),
           });
-          if (!r.ok) { setErro(await r.text()); return; }
+          if (!r.ok) { setErro(await mensagemErro(r)); return; }
           const a = await r.json();
           ativoId = a.id;
         }
@@ -599,7 +600,7 @@ function LancamentoDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!r.ok) { setErro(await r.text()); return; }
+      if (!r.ok) { setErro(await mensagemErro(r)); return; }
       const resp = await r.json().catch(() => ({}));
       const importados = resp?.dividendosImportados ?? 0;
       if (importados > 0) {

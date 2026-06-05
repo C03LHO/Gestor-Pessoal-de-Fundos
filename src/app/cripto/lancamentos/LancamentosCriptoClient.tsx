@@ -7,6 +7,7 @@ import { useMoeda } from "@/lib/cripto/moeda";
 import { Money } from "@/components/cripto/Money";
 import { Trash2, Plus, ArrowDownCircle, ArrowUpCircle, Pickaxe, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { mensagemErro } from "@/lib/erro-api";
 
 type Lanc = {
   id: string;
@@ -113,11 +114,7 @@ export function LancamentosCriptoClient({ lancamentos, precos, saldos }: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!r.ok) {
-        const t = await r.text();
-        try { setErro(JSON.parse(t).erro ?? t); } catch { setErro(t); }
-        return;
-      }
+      if (!r.ok) { setErro(await mensagemErro(r)); return; }
       setQuantidade(""); setPrecoUnit(""); setObs("");
       router.refresh();
     } finally {

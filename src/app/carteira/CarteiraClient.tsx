@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Trash2, X, MoreVertical, ChevronRight } from "lucide-react";
 import { brl, num, pct } from "@/lib/format";
 import { cn } from "@/lib/cn";
+import { mensagemErro } from "@/lib/erro-api";
 
 type Posicao = {
   ativoId: string;
@@ -48,7 +49,7 @@ export function CarteiraClient({ posicoes, patrimonio }: { posicoes: Posicao[]; 
     try {
       const r = await fetch(`/api/ativos/${confirmando.ativoId}`, { method: "DELETE" });
       if (!r.ok && r.status !== 204) {
-        alert("Falha ao excluir: " + (await r.text()));
+        alert("Falha ao excluir: " + (await mensagemErro(r)));
         return;
       }
       setConfirmando(null);

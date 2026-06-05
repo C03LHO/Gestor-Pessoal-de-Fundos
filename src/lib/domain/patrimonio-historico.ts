@@ -8,7 +8,10 @@ import { recalcularPortfolio, type LancamentoInput, type AtivoInfo } from "./por
  *  - aplica preço da Cotacao mais recente <= fim do mês (fallback: precoAtual)
  *  - delega a recalcularPortfolio
  */
-export async function patrimonioHistorico(meses = 12): Promise<{ mes: string; investido: number; valor: number }[]> {
+export async function patrimonioHistorico(
+  meses = 12,
+  carteiraId?: string,
+): Promise<{ mes: string; investido: number; valor: number }[]> {
   const ini = new Date();
   ini.setDate(1); ini.setHours(0, 0, 0, 0);
   ini.setMonth(ini.getMonth() - (meses - 1));
@@ -18,14 +21,20 @@ export async function patrimonioHistorico(meses = 12): Promise<{ mes: string; in
       select: { id: true, ticker: true, nome: true, segmento: true, precoAtual: true },
     }),
     prisma.lancamento.findMany({
-      where: { tipo: { in: ["COMPRA", "VENDA", "REINVESTIMENTO", "DIVIDENDO"] } },
+      // Isola por carteira ativa — sem isso a evolução somava TODAS as carteiras.
+      where: {
+        carteiraId: carteiraId ?? undefined,
+        tipo: { in: ["COMPRA", "VENDA", "REINVESTIMENTO", "DIVIDENDO"] },
+      },
       select: {
         id: true, tipo: true, data: true, ativoId: true,
         quantidade: true, precoUnit: true, valorTotal: true,
       },
       orderBy: { data: "asc" },
     }),
-    prisma.cotacao.findMany({ orderBy: { data: "asc" } }),
+    // Só cotações da janela analisada (>= início do 1º mês). Antes carregava a
+    // tabela inteira a cada render do dashboard.
+    prisma.cotacao.findMany({ where: { data: { gte: ini } }, orderBy: { data: "asc" } }),
   ]);
 
   const seriesCotacao = new Map<string, { data: Date; preco: number }[]>();

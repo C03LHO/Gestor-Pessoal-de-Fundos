@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Plus, Wallet, LogOut, Coins } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { haptic } from "@/lib/ux/haptic";
+import { mensagemErro } from "@/lib/erro-api";
 
 type Carteira = { id: string; nome: string; cor: string | null; tipo?: string | null };
 
@@ -52,7 +53,7 @@ export function CarteiraSwitcher({ ativaId, carteiras }: { ativaId: string; cart
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nome: novaNome.trim(), tipo: novoTipo }),
       });
-      if (!r.ok) { alert(await r.text()); return; }
+      if (!r.ok) { alert(await mensagemErro(r)); return; }
       const nova = await r.json();
       setNovaNome("");
       await trocar(nova.id);

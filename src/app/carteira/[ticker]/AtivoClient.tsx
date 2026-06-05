@@ -7,6 +7,7 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGri
 import { brl, dataBR, pct } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ux/Toast";
+import { mensagemErro } from "@/lib/erro-api";
 
 type Ativo = {
   id: string; ticker: string; nome: string | null; segmento: string | null;
@@ -39,7 +40,7 @@ export function AtivoClient({ ativo, cotacoes, dividendosYahoo }:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ativoId: ativo.id, anos: 10 }),
       });
-      if (!r.ok) { toast("erro", "Falha: " + (await r.text()).slice(0, 100)); return; }
+      if (!r.ok) { toast("erro", await mensagemErro(r)); return; }
       const j = await r.json();
       if (j.importados > 0) {
         toast("sucesso", `${j.importados} dividendos importados de ${ativo.ticker}`);
