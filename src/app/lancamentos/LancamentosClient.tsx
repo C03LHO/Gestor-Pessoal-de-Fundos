@@ -674,7 +674,7 @@ function LancamentoDialog({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 items-end">
             <div>
               <label className="label">Data</label>
               <input type="date" className="input" value={data} onChange={(e) => setData(e.target.value)} required />
@@ -724,7 +724,7 @@ function LancamentoDialog({
           </div>
 
           {precisaQtd && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 items-end">
               <div>
                 <label className="label">Quantidade</label>
                 <input
@@ -735,10 +735,10 @@ function LancamentoDialog({
                 />
               </div>
               <div>
-                <label className="label flex justify-between">
-                  <span>Preço por cota</span>
+                <label className="label flex items-center justify-between gap-2 whitespace-nowrap">
+                  <span className="truncate">Preço/cota</span>
                   <button type="button" onClick={buscarPrecoYahoo} disabled={buscandoPreco}
-                          className="text-emerald-400 normal-case tracking-normal text-[10px] hover:underline disabled:opacity-50">
+                          className="text-emerald-400 normal-case tracking-normal text-[10px] hover:underline disabled:opacity-50 shrink-0">
                     {buscandoPreco ? "buscando..." : "cotação atual"}
                   </button>
                 </label>

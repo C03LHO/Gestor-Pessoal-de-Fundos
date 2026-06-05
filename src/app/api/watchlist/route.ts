@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { buscarCotacao } from "@/lib/mercado/yahoo";
 import { garantirWatchlistInicial } from "@/lib/domain/watchlist";
+import { parseBody } from "@/lib/api";
 
 const schema = z.object({
   ticker: z.string().transform((s) => s.trim().toUpperCase()),
@@ -17,7 +18,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const body = schema.parse(await req.json());
+  const parsed = await parseBody(req, schema);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const max = await prisma.watchlistAtivo.aggregate({ _max: { ordem: true } });
   const cot = await buscarCotacao(body.ticker).catch(() => null);
   if (cot && !(await prisma.ativo.findUnique({ where: { ticker: body.ticker } }))) {

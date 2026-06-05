@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { sincronizarDividendosDoAtivo } from "@/lib/domain/sync-dividendos";
 import { getCarteiraAtivaId } from "@/lib/carteira";
 import { validarVenda, type LancamentoInput } from "@/lib/domain/portfolio";
+import { parseBody } from "@/lib/api";
 import { log } from "@/lib/log";
 
 const schema = z.object({
@@ -27,8 +28,11 @@ function comTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 export async function GET(req: NextRequest) {
   const tipo = req.nextUrl.searchParams.get("tipo");
   const ativoId = req.nextUrl.searchParams.get("ativoId");
+  // Isola por carteira ativa — sem isso o endpoint vazaria lançamentos de
+  // todas as carteiras, quebrando o isolamento prometido na UI.
+  const carteiraId = await getCarteiraAtivaId();
   const data = await prisma.lancamento.findMany({
-    where: { tipo: tipo ?? undefined, ativoId: ativoId ?? undefined },
+    where: { carteiraId, tipo: tipo ?? undefined, ativoId: ativoId ?? undefined },
     include: { ativo: true },
     orderBy: { data: "desc" },
     take: 500,
@@ -37,7 +41,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = schema.parse(await req.json());
+  const parsed = await parseBody(req, schema);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const carteiraId = await getCarteiraAtivaId();
 
   // Valida VENDA contra posição na data (impede cotas negativas silenciosas)

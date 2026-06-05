@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { parseBody } from "@/lib/api";
 
 export const runtime = "nodejs";
 
@@ -11,7 +12,9 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const body = schema.parse(await req.json());
+  const parsed = await parseBody(req, schema);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const sub = await prisma.pushSubscription.upsert({
     where: { endpoint: body.endpoint },
     create: {

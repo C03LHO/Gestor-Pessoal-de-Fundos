@@ -87,7 +87,7 @@ export function CarteiraSwitcher({ ativaId, carteiras }: { ativaId: string; cart
       </button>
 
       {aberto && (
-        <div className="absolute right-0 top-full mt-2 z-40 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl min-w-[260px] max-w-[calc(100vw-2rem)] overflow-hidden">
+        <div className="absolute left-0 top-full mt-2 z-40 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-[min(20rem,calc(100vw-2rem))] overflow-hidden">
           <div className="p-1">
             {carteiras.map((c) => {
               const cripto = c.tipo === "CRIPTO";

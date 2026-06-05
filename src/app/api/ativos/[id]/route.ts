@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { parseBody } from "@/lib/api";
 
 const patchSchema = z.object({
   nome: z.string().nullable().optional(),
@@ -10,7 +11,9 @@ const patchSchema = z.object({
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = patchSchema.parse(await req.json());
+  const parsed = await parseBody(req, patchSchema);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const a = await prisma.ativo.update({
     where: { id },
     data: {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { sincronizarDividendosDoAtivo } from "@/lib/domain/sync-dividendos";
 import { validarVenda, type LancamentoInput } from "@/lib/domain/portfolio";
+import { parseBody } from "@/lib/api";
 
 const patchSchema = z.object({
   tipo: z.enum(["COMPRA", "VENDA", "APORTE", "DIVIDENDO", "REINVESTIMENTO"]).optional(),
@@ -16,7 +17,9 @@ const patchSchema = z.object({
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = patchSchema.parse(await req.json());
+  const parsed = await parseBody(req, patchSchema);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
 
   // Se virou VENDA (ou já era e mudou data/quantidade/ativoId), revalida posição.
   if (body.tipo === "VENDA" || body.quantidade != null || body.data || body.ativoId) {

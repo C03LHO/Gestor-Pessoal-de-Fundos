@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { parseBody } from "@/lib/api";
 
 const schema = z.object({
   ticker: z.string().min(1).transform((s) => s.trim().toUpperCase()),
@@ -15,7 +16,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const body = schema.parse(await req.json());
+  const parsed = await parseBody(req, schema);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   try {
     const a = await prisma.ativo.create({
       data: { ...body, atualizadoEm: body.precoAtual != null ? new Date() : null },

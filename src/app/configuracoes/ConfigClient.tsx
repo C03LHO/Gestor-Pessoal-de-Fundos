@@ -16,9 +16,6 @@ type Cfg = {
   dyEstimadoAA: number;
   prazoMetaAnos: number;
   alocacaoAlvo: string | null;
-  iaProvedor: string | null;
-  iaApiKey: string | null;
-  iaModelo: string | null;
 } | null;
 
 type Carteira = { id: string; nome: string; cor: string | null };
@@ -51,10 +48,6 @@ export function ConfigClient({ cfg, ultimaSync, carteiras }:
   const [salvando, setSalvando] = useState(false);
   const [saude, setSaude] = useState<any>(null);
 
-  const [iaProvedor, setIaProvedor] = useState<"" | "gemini" | "groq">((cfg?.iaProvedor as any) ?? "");
-  const [iaApiKey, setIaApiKey] = useState(cfg?.iaApiKey ?? "");
-  const [iaModelo, setIaModelo] = useState(cfg?.iaModelo ?? "");
-
   const totalAloc = Object.values(aloc).reduce((s, v) => s + v, 0);
 
   async function salvar() {
@@ -70,9 +63,6 @@ export function ConfigClient({ cfg, ultimaSync, carteiras }:
           prazoMetaAnos: prazoMeta,
           dyEstimadoAA: dy / 100,
           alocacaoAlvo: JSON.stringify(aloc),
-          iaProvedor: iaProvedor || null,
-          iaApiKey: iaApiKey || null,
-          iaModelo: iaModelo || null,
         }),
       });
       if (!r.ok) { toast("erro", "Falha ao salvar"); return; }

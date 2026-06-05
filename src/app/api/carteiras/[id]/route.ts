@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { parseBody } from "@/lib/api";
 
 const patch = z.object({
   nome: z.string().min(1).max(40).optional(),
@@ -9,7 +10,9 @@ const patch = z.object({
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = patch.parse(await req.json());
+  const parsed = await parseBody(req, patch);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   try {
     const c = await prisma.carteira.update({ where: { id }, data: body });
     return NextResponse.json(c);

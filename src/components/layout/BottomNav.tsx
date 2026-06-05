@@ -9,14 +9,14 @@ import {
 import { cn } from "@/lib/cn";
 
 const principaisFii = [
-  { href: "/",              label: "Início",    icon: LayoutDashboard },
-  { href: "/oportunidades", label: "Oport.",    icon: TrendingDown },
-  { href: "/graficos",      label: "Gráficos",  icon: LineChart },
-  { href: "/carteira",      label: "Carteira",  icon: Wallet },
+  { href: "/",              label: "Início",      icon: LayoutDashboard },
+  { href: "/oportunidades", label: "Oport.",      icon: TrendingDown },
+  { href: "/lancamentos",   label: "Lançamentos", icon: ListPlus },
+  { href: "/carteira",      label: "Carteira",    icon: Wallet },
 ];
 
 const secundariosFii = [
-  { href: "/lancamentos",   label: "Lançamentos",   icon: ListPlus },
+  { href: "/graficos",      label: "Gráficos",      icon: LineChart },
   { href: "/resumo",        label: "Resumo",        icon: BarChart3 },
   { href: "/calendario",    label: "Calendário",    icon: CalendarDays },
   { href: "/metas",         label: "Metas",         icon: Target },
@@ -26,14 +26,14 @@ const secundariosFii = [
 ];
 
 const principaisCripto = [
-  { href: "/cripto",               label: "Início",    icon: LayoutDashboard },
-  { href: "/cripto/oportunidades", label: "Oport.",    icon: TrendingDown },
-  { href: "/cripto/graficos",      label: "Gráficos",  icon: LineChart },
-  { href: "/cripto/carteira",      label: "Carteira",  icon: Coins },
+  { href: "/cripto",               label: "Início",      icon: LayoutDashboard },
+  { href: "/cripto/oportunidades", label: "Oport.",      icon: TrendingDown },
+  { href: "/cripto/lancamentos",   label: "Lançamentos", icon: ListPlus },
+  { href: "/cripto/carteira",      label: "Carteira",    icon: Coins },
 ];
 
 const secundariosCripto = [
-  { href: "/cripto/lancamentos",   label: "Lançamentos",   icon: ListPlus },
+  { href: "/cripto/graficos",      label: "Gráficos",      icon: LineChart },
   { href: "/configuracoes",        label: "Configurações", icon: Settings },
 ];
 

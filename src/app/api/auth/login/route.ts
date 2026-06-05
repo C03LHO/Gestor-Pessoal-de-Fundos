@@ -30,6 +30,18 @@ function limparFalhas(req: NextRequest) {
   tentativas.delete(chave(req));
 }
 
+/**
+ * Comparação de senha em tempo constante. Compara digests SHA-256 (sempre 32
+ * bytes) para que `timingSafeEqual` não revele o tamanho da senha nem aborte
+ * por diferença de comprimento — evita timing attack na comparação.
+ */
+function senhaConfere(informada: string, esperada: string): boolean {
+  if (!esperada) return false;
+  const a = crypto.createHash("sha256").update(informada).digest();
+  const b = crypto.createHash("sha256").update(esperada).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
 export async function POST(req: NextRequest) {
   if (bloqueado(req)) {
     log.warn("auth.login.rate_limited", { ip: chave(req) });
@@ -40,7 +52,7 @@ export async function POST(req: NextRequest) {
   const senha = form.get("password")?.toString() ?? "";
   const env = process.env.APP_PASSWORD ?? "";
 
-  if (!env || senha !== env) {
+  if (!senhaConfere(senha, env)) {
     registrarFalha(req);
     log.warn("auth.login.failed", { ip: chave(req) });
     return NextResponse.redirect(new URL("/login?erro=1", req.url), { status: 303 });
