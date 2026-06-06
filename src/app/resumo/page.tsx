@@ -4,6 +4,8 @@ import { previsaoProximoMes } from "@/lib/domain/previsao";
 import { getCarteiraAtivaId } from "@/lib/carteira";
 import { brl, dataBR, pct } from "@/lib/format";
 import { rentabilidadeIfix, rentabilidadeCdi, rentabilidadeIbov, rentabilidadeBtc } from "@/lib/mercado/benchmark";
+import { patrimonioHistorico } from "@/lib/domain/patrimonio-historico";
+import { calcularMetricas } from "@/lib/domain/metricas";
 import { somarLista } from "@/lib/money";
 import { cn } from "@/lib/cn";
 
@@ -15,7 +17,7 @@ export default async function ResumoPage() {
   const seteDiasAtras = new Date();
   seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
 
-  const [divs, compras, posicoes, previsao, ifix, cdi, ibov, btc] = await Promise.all([
+  const [divs, compras, posicoes, previsao, ifix, cdi, ibov, btc, patrSerie] = await Promise.all([
     prisma.lancamento.findMany({
       where: { tipo: "DIVIDENDO", data: { gte: seteDiasAtras }, carteiraId },
       include: { ativo: true },
@@ -32,6 +34,7 @@ export default async function ResumoPage() {
     rentabilidadeCdi(12),
     rentabilidadeIbov(12),
     rentabilidadeBtc(12),
+    patrimonioHistorico(12, carteiraId),
   ]);
 
   const resumoP = resumoCarteira(posicoes);
@@ -41,6 +44,12 @@ export default async function ResumoPage() {
   const rentCarteira12m = resumoP.investido > 0
     ? (resumoP.valorAtual + resumoP.dividendos12m) / resumoP.investido - 1
     : 0;
+
+  // Métricas de risco/retorno (12m), com CDI como taxa livre de risco.
+  const metricas = calcularMetricas(
+    patrSerie.map((p) => ({ valor: p.valor, investido: p.investido })),
+    cdi,
+  );
 
   return (
     <div className="space-y-5 md:space-y-6">
@@ -69,6 +78,39 @@ export default async function ResumoPage() {
           <p className="text-[10px] text-zinc-500 mt-3">
             Algum benchmark indisponível agora. Tente recarregar mais tarde.
           </p>
+        )}
+      </section>
+
+      <section className="card">
+        <h2 className="font-semibold text-sm md:text-base mb-3">Métricas de risco/retorno (12m)</h2>
+        {metricas.meses < 2 ? (
+          <p className="text-xs text-zinc-500">Histórico insuficiente para calcular métricas.</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-3">
+              <Metrica
+                label="CAGR"
+                valor={`${metricas.cagr >= 0 ? "+" : ""}${pct(metricas.cagr)}`}
+                cor={metricas.cagr >= 0 ? "text-emerald-400" : "text-rose-400"}
+                hint="retorno anualizado"
+              />
+              <Metrica
+                label="Máx. queda"
+                valor={`-${pct(metricas.maxDrawdown)}`}
+                cor="text-rose-400"
+                hint="pico → vale"
+              />
+              <Metrica
+                label="Sharpe"
+                valor={metricas.sharpe.toFixed(2)}
+                cor={metricas.sharpe >= 1 ? "text-emerald-400" : metricas.sharpe >= 0 ? "text-zinc-200" : "text-rose-400"}
+                hint="vs CDI, anualiz."
+              />
+            </div>
+            <p className="text-[10px] text-zinc-500 mt-3">
+              Retorno ajustado por aportes (Dietz). Drawdown sobre o índice acumulado de {metricas.meses} meses.
+            </p>
+          </>
         )}
       </section>
 
@@ -136,6 +178,16 @@ function Kpi({ label, valor, accent, hint }: {
         {valor}
       </div>
       {hint && <div className="text-[10px] text-zinc-500 mt-0.5">{hint}</div>}
+    </div>
+  );
+}
+
+function Metrica({ label, valor, cor, hint }: { label: string; valor: string; cor: string; hint: string }) {
+  return (
+    <div className="rounded-xl border border-zinc-800 p-3">
+      <div className="text-[10px] uppercase tracking-wider text-zinc-500">{label}</div>
+      <div className={cn("text-lg md:text-xl font-semibold tabular-nums mt-1", cor)}>{valor}</div>
+      <div className="text-[10px] text-zinc-500 mt-0.5">{hint}</div>
     </div>
   );
 }
