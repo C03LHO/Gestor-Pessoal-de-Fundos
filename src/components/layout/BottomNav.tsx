@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Wallet, ListPlus, TrendingDown, MoreHorizontal,
-  Target, Calculator, FileText, BarChart3, Settings, X, CalendarDays, LineChart, Coins,
+  Target, Calculator, FileText, BarChart3, Settings, X, CalendarDays, LineChart, Coins, Layers,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -22,6 +22,7 @@ const secundariosFii = [
   { href: "/metas",         label: "Metas",         icon: Target },
   { href: "/simulador",     label: "Simulador",     icon: Calculator },
   { href: "/relatorios",    label: "Relatórios",    icon: FileText },
+  { href: "/consolidado",   label: "Consolidado",   icon: Layers },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
@@ -35,6 +36,7 @@ const principaisCripto = [
 const secundariosCripto = [
   { href: "/cripto/graficos",      label: "Gráficos",      icon: LineChart },
   { href: "/cripto/relatorios",    label: "Relatórios",    icon: FileText },
+  { href: "/consolidado",          label: "Consolidado",   icon: Layers },
   { href: "/configuracoes",        label: "Configurações", icon: Settings },
 ];
 

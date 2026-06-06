@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Wallet, ListPlus, Target, Calculator, CalendarDays,
-  FileText, BarChart3, Settings, TrendingDown, LineChart, Coins,
+  FileText, BarChart3, Settings, TrendingDown, LineChart, Coins, Layers,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -18,6 +18,7 @@ const itensFii = [
   { href: "/metas",         label: "Metas",         icon: Target },
   { href: "/simulador",     label: "Simulador",     icon: Calculator },
   { href: "/relatorios",    label: "Relatórios",    icon: FileText },
+  { href: "/consolidado",   label: "Consolidado",   icon: Layers },
   { href: "/configuracoes", label: "Config",        icon: Settings },
 ];
 
@@ -28,6 +29,7 @@ const itensCripto = [
   { href: "/cripto/carteira",      label: "Carteira",      icon: Coins },
   { href: "/cripto/lancamentos",   label: "Lançamentos",   icon: ListPlus },
   { href: "/cripto/relatorios",    label: "Relatórios",    icon: FileText },
+  { href: "/consolidado",          label: "Consolidado",   icon: Layers },
   { href: "/configuracoes",        label: "Config",        icon: Settings },
 ];
 
