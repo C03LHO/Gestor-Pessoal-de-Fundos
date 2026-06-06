@@ -29,6 +29,20 @@ export default async function RelatoriosPage() {
       </header>
 
       <section className="card">
+        <h2 className="font-semibold mb-1">Relatório de IR (imprimível)</h2>
+        <p className="text-xs text-zinc-500 mb-4">
+          Página única com bens e direitos, proventos isentos e ganho de capital — imprima ou salve em PDF.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {anos.map((a) => (
+            <a key={a} href={`/relatorios/ir?ano=${a}`} className="btn-ghost border border-zinc-800">
+              Abrir {a}
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <section className="card">
         <h2 className="font-semibold mb-1">Proventos recebidos por ano</h2>
         <p className="text-xs text-zinc-500 mb-4">CSV com todos os dividendos do ano, pronto para o IR.</p>
         <div className="text-xs text-zinc-400 mb-3">

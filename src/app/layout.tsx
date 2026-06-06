@@ -65,7 +65,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             }}
           >
             {/* mobile fix: flex-wrap evita overflow horizontal em 375px */}
-            <div className="flex justify-between items-center mb-4 gap-2 flex-wrap">
+            <div className="flex justify-between items-center mb-4 gap-2 flex-wrap print:hidden">
               <CarteiraSwitcher ativaId={ativaId} carteiras={carteiras} />
               <div className="flex gap-2 flex-shrink-0">
                 <BuscaGlobal />

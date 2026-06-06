@@ -38,7 +38,7 @@ export function Sidebar({ tipo = "FII" }: { tipo?: "FII" | "CRIPTO" }) {
   const itens = tipo === "CRIPTO" ? itensCripto : itensFii;
   const subtitulo = tipo === "CRIPTO" ? "Acompanhamento de cripto" : "Gestão pessoal de FIIs";
   return (
-    <aside className="hidden md:flex w-60 min-h-screen flex-col border-r border-zinc-900 p-4 gap-1 sticky top-0">
+    <aside className="hidden md:flex w-60 min-h-screen flex-col border-r border-zinc-900 p-4 gap-1 sticky top-0 print:hidden">
       <div className="px-2 py-4">
         <div className="text-lg font-semibold tracking-tight">Fundos</div>
         <div className="text-xs text-zinc-500">{subtitulo}</div>

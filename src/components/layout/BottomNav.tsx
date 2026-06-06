@@ -48,7 +48,7 @@ export function BottomNav({ tipo = "FII" }: { tipo?: "FII" | "CRIPTO" }) {
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-zinc-950/95 backdrop-blur border-t border-zinc-900"
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-zinc-950/95 backdrop-blur border-t border-zinc-900 print:hidden"
            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="grid grid-cols-5">
           {principais.map(({ href, label, icon: Icon }) => {

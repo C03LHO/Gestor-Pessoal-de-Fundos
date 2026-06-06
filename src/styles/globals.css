@@ -74,6 +74,27 @@ main > div { animation: fadeIn 0.25s ease-out; }
   border-radius: 0.5rem;
 }
 
+/* ------- Impressão: relatório legível em papel (app é dark-only) ------- */
+@media print {
+  html, body {
+    background: #fff !important;
+    color: #18181b !important;
+  }
+  main { padding: 0 !important; max-width: none !important; }
+  main > div { animation: none !important; }
+  .card {
+    background: #fff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  .text-zinc-100, .text-zinc-200, .text-zinc-300, .text-zinc-400 { color: #27272a !important; }
+  .text-zinc-500, .text-zinc-600 { color: #52525b !important; }
+  .text-emerald-400, .text-emerald-300 { color: #047857 !important; }
+  .text-rose-400, .text-rose-300 { color: #be123c !important; }
+  .table th, .table td { border-color: #cbd5e1 !important; }
+}
+
 @layer components {
   .card {
     @apply rounded-2xl border border-zinc-800/80 bg-zinc-900/40 backdrop-blur p-4 md:p-5;
