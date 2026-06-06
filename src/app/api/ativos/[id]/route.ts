@@ -7,6 +7,7 @@ const patchSchema = z.object({
   nome: z.string().nullable().optional(),
   segmento: z.string().nullable().optional(),
   precoAtual: z.number().nullable().optional(),
+  notas: z.string().max(2000).nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

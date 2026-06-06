@@ -12,6 +12,7 @@ import { mensagemErro } from "@/lib/erro-api";
 type Ativo = {
   id: string; ticker: string; nome: string | null; segmento: string | null;
   precoAtual: number | null;
+  notas?: string | null;
   lancamentos: { id: string; tipo: string; data: string; quantidade: number | null; precoUnit: number | null; valorTotal: number; observacao: string | null }[];
 };
 type Cotacao = { ticker: string; preco: number; data: string };
@@ -121,6 +122,8 @@ export function AtivoClient({ ativo, cotacoes, dividendosYahoo }:
         <Kpi label="Variação" valor={pct(variacao)} accent={variacao >= 0 ? "emerald" : "rose"} />
       </div>
 
+      <TeseNotas ativoId={ativo.id} ticker={ativo.ticker} inicial={ativo.notas ?? ""} />
+
       {serieDiv.length > 0 && (
         <section className="card">
           <h2 className="font-semibold mb-3">Histórico de proventos / cota (Yahoo)</h2>
@@ -192,5 +195,49 @@ function Kpi({ label, valor, accent }: { label: string; valor: string; accent?: 
         accent === "rose" && "text-rose-400",
       )}>{valor}</div>
     </div>
+  );
+}
+
+function TeseNotas({ ativoId, ticker, inicial }: { ativoId: string; ticker: string; inicial: string }) {
+  const router = useRouter();
+  const toast = useToast();
+  const [texto, setTexto] = useState(inicial);
+  const [salvando, setSalvando] = useState(false);
+  const mudou = texto !== inicial;
+
+  async function salvar() {
+    setSalvando(true);
+    try {
+      const r = await fetch(`/api/ativos/${ativoId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notas: texto.trim() || null }),
+      });
+      if (!r.ok) { toast("erro", await mensagemErro(r)); return; }
+      toast("sucesso", `Tese de ${ticker} salva`);
+      router.refresh();
+    } finally { setSalvando(false); }
+  }
+
+  return (
+    <section className="card">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="font-semibold">Tese / notas</h2>
+        {mudou && (
+          <button onClick={salvar} disabled={salvando} className="btn !min-h-0 !py-1.5 !px-3 text-xs">
+            {salvando ? "Salvando..." : "Salvar"}
+          </button>
+        )}
+      </div>
+      <textarea
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        rows={4}
+        maxLength={2000}
+        placeholder="Por que você investe nesse ativo? Tese, gatilhos de compra/venda, pontos de atenção..."
+        className="input w-full resize-y min-h-[96px]"
+      />
+      <p className="text-[10px] text-zinc-500 mt-1">Anotação pessoal · {texto.length}/2000</p>
+    </section>
   );
 }

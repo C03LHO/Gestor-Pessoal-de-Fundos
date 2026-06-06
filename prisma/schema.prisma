@@ -13,6 +13,7 @@ model Ativo {
   nome         String?
   segmento     String?
   precoAtual   Float?
+  notas        String?  // tese de investimento / anotações pessoais
   atualizadoEm DateTime?
   criadoEm     DateTime @default(now())
 
