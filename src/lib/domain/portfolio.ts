@@ -16,7 +16,14 @@
 
 import { toCent, toReais, multiplicar } from "../money";
 
-export type TipoLancamento = "COMPRA" | "VENDA" | "DIVIDENDO" | "REINVESTIMENTO" | "APORTE";
+export type TipoLancamento =
+  | "COMPRA"
+  | "VENDA"
+  | "DIVIDENDO"
+  | "REINVESTIMENTO"
+  | "APORTE"
+  | "AMORTIZACAO" // devolução de principal (FII de papel/CRI): reduz custo/PM, não é provento
+  | "RETIRADA";   // saída de caixa: não afeta posição de nenhum ativo
 
 export type LancamentoInput = {
   id: string;
@@ -56,6 +63,7 @@ export type EstadoAtivo = {
   totalRecebidoVenda: number;  // soma de todas as vendas
   dividendosTotal: number;
   dividendos12m: number;
+  amortizacoesTotal: number; // total recebido em devolução de principal (reduz custo)
   ultimoDividendo: number;
   ultimaDataDividendo: Date | null;
   yieldOnCost: number;      // dividendos12m / custoTotal (do ciclo atual)
@@ -88,7 +96,9 @@ const PRIORIDADE_TIPO: Record<TipoLancamento, number> = {
   COMPRA: 0,
   REINVESTIMENTO: 0,
   APORTE: 1,
+  RETIRADA: 1,
   DIVIDENDO: 2,
+  AMORTIZACAO: 2, // antes da venda no mesmo dia: custo já reduzido → ganho correto
   VENDA: 3,
 };
 
@@ -122,6 +132,7 @@ export function recalcularAtivo(
   let totalVendaCent = 0;
   let dividendosTotalCent = 0;
   let dividendos12mCent = 0;
+  let amortizacoesCent = 0;
   let ultimoDivCent = 0;
   let ultimaDataDiv: Date | null = null;
   let ciclos = 0;
@@ -187,7 +198,15 @@ export function recalcularAtivo(
       continue;
     }
 
-    // APORTE: dinheiro novo na carteira, não toca preço/posição do ativo.
+    if (l.tipo === "AMORTIZACAO") {
+      // Devolução de principal: reduz o custo da posição (PM cai). Não é
+      // provento (não entra em dividendos). Custo não fica negativo.
+      amortizacoesCent += valorCent;
+      custoCent = Math.max(0, custoCent - valorCent);
+      continue;
+    }
+
+    // APORTE e RETIRADA: fluxo de caixa da carteira, não tocam posição do ativo.
   }
 
   const custoTotal = toReais(custoCent);
@@ -215,6 +234,7 @@ export function recalcularAtivo(
     totalRecebidoVenda: toReais(totalVendaCent),
     dividendosTotal: toReais(dividendosTotalCent),
     dividendos12m: toReais(dividendos12mCent),
+    amortizacoesTotal: toReais(amortizacoesCent),
     ultimoDividendo: toReais(ultimoDivCent),
     ultimaDataDividendo: ultimaDataDiv,
     yieldOnCost: custoTotal > 0 ? toReais(dividendos12mCent) / custoTotal : 0,
@@ -307,6 +327,11 @@ export function eventosVenda(lancsBrutos: LancamentoInput[]): VendaRealizada[] {
       if (qtd <= 0) continue;
       cotas += qtd;
       custoCent += toCent(l.valorTotal);
+      continue;
+    }
+    if (l.tipo === "AMORTIZACAO") {
+      // Reduz o custo base — afeta o PM das vendas seguintes (e o ganho/DARF).
+      custoCent = Math.max(0, custoCent - toCent(l.valorTotal));
       continue;
     }
     if (l.tipo === "VENDA") {

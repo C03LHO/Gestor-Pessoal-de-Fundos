@@ -27,8 +27,8 @@ type Lanc = {
   ativo: { id: string; ticker: string; nome: string | null } | null;
 };
 
-const TIPOS = ["COMPRA", "VENDA", "APORTE", "DIVIDENDO", "REINVESTIMENTO"] as const;
-const TIPOS_NOVOS = ["COMPRA", "VENDA"] as const;
+const TIPOS = ["COMPRA", "VENDA", "APORTE", "DIVIDENDO", "REINVESTIMENTO", "AMORTIZACAO", "RETIRADA"] as const;
+const TIPOS_NOVOS = ["COMPRA", "VENDA", "AMORTIZACAO", "RETIRADA"] as const;
 
 const corTipo: Record<string, string> = {
   COMPRA:         "bg-emerald-500/10 text-emerald-300",
@@ -36,6 +36,21 @@ const corTipo: Record<string, string> = {
   APORTE:         "bg-sky-500/10 text-sky-300",
   DIVIDENDO:      "bg-amber-500/10 text-amber-300",
   REINVESTIMENTO: "bg-violet-500/10 text-violet-300",
+  AMORTIZACAO:    "bg-teal-500/10 text-teal-300",
+  RETIRADA:       "bg-orange-500/10 text-orange-300",
+};
+
+// Estilo do botão ativo no seletor de tipo do formulário.
+const corTipoAtivo: Record<string, string> = {
+  COMPRA:      "border-emerald-500/60 bg-emerald-500/10 text-emerald-300",
+  VENDA:       "border-rose-500/60 bg-rose-500/10 text-rose-300",
+  AMORTIZACAO: "border-teal-500/60 bg-teal-500/10 text-teal-300",
+  RETIRADA:    "border-orange-500/60 bg-orange-500/10 text-orange-300",
+};
+
+const rotuloTipo: Record<string, string> = {
+  AMORTIZACAO: "AMORTIZAÇÃO",
+  RETIRADA:    "RETIRADA",
 };
 
 export function LancamentosClient({ lancamentos, ativos }: { lancamentos: Lanc[]; ativos: Ativo[] }) {
@@ -511,7 +526,7 @@ function LancamentoDialog({
   }, []);
 
   const precisaQtd = tipo === "COMPRA" || tipo === "VENDA" || tipo === "REINVESTIMENTO";
-  const precisaAtivo = tipo !== "APORTE";
+  const precisaAtivo = tipo !== "APORTE" && tipo !== "RETIRADA";
 
   const sugestoes = useMemo(() => {
     if (!precisaAtivo) return [];
@@ -655,15 +670,13 @@ function LancamentoDialog({
                   <button
                     type="button" key={t} onClick={() => setTipo(t)}
                     className={cn(
-                      "min-h-[48px] px-3 py-3 text-base rounded-lg border transition font-medium",
+                      "min-h-[48px] px-3 py-3 text-sm rounded-lg border transition font-medium",
                       tipo === t
-                        ? t === "COMPRA"
-                          ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
-                          : "border-rose-500/60 bg-rose-500/10 text-rose-300"
+                        ? corTipoAtivo[t] ?? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
                         : "border-zinc-800 text-zinc-400 hover:text-zinc-200 active:bg-zinc-800",
                     )}
                   >
-                    {t}
+                    {rotuloTipo[t] ?? t}
                   </button>
                 ))}
               </div>

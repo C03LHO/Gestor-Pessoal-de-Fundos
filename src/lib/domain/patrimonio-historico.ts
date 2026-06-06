@@ -24,7 +24,7 @@ export async function patrimonioHistorico(
       // Isola por carteira ativa — sem isso a evolução somava TODAS as carteiras.
       where: {
         carteiraId: carteiraId ?? undefined,
-        tipo: { in: ["COMPRA", "VENDA", "REINVESTIMENTO", "DIVIDENDO"] },
+        tipo: { in: ["COMPRA", "VENDA", "REINVESTIMENTO", "DIVIDENDO", "AMORTIZACAO"] },
       },
       select: {
         id: true, tipo: true, data: true, ativoId: true,

@@ -8,7 +8,7 @@ import { parseBody } from "@/lib/api";
 import { log } from "@/lib/log";
 
 const schema = z.object({
-  tipo: z.enum(["COMPRA", "VENDA", "APORTE", "DIVIDENDO", "REINVESTIMENTO"]),
+  tipo: z.enum(["COMPRA", "VENDA", "APORTE", "DIVIDENDO", "REINVESTIMENTO", "AMORTIZACAO", "RETIRADA"]),
   data: z.coerce.date(),
   ativoId: z.string().nullable().optional(),
   quantidade: z.number().nonnegative().nullable().optional(),

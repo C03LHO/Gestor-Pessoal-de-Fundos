@@ -6,7 +6,7 @@ import { validarVenda, type LancamentoInput } from "@/lib/domain/portfolio";
 import { parseBody } from "@/lib/api";
 
 const patchSchema = z.object({
-  tipo: z.enum(["COMPRA", "VENDA", "APORTE", "DIVIDENDO", "REINVESTIMENTO"]).optional(),
+  tipo: z.enum(["COMPRA", "VENDA", "APORTE", "DIVIDENDO", "REINVESTIMENTO", "AMORTIZACAO", "RETIRADA"]).optional(),
   data: z.coerce.date().optional(),
   ativoId: z.string().nullable().optional(),
   quantidade: z.number().nullable().optional(),
