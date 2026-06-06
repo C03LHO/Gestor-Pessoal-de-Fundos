@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCarteiraAtivaId } from "@/lib/carteira";
-import { toCent, toReais, multiplicar } from "@/lib/money";
+import { toCent, toReais } from "@/lib/money";
+import { eventosVenda, type LancamentoInput } from "@/lib/domain/portfolio";
 
 /**
  * Calcula DARF mensal sobre lucro de venda de FIIs.
  * Alíquota: 20% sobre o lucro de cada operação de venda.
  * Não há isenção para FII em ganho de capital (diferente de ações).
  *
- * Query: ?ano=2026&mes=5  (default: mês atual)
- * Isola por carteira ativa e calcula o PM em centavos (sem drift de float).
+ * Query: ?ano=2026&mes=5  (default: mês atual). Isola por carteira ativa e
+ * apura cada venda pela engine `eventosVenda` (mesma lógica/centavos da carteira).
  */
 export async function GET(req: NextRequest) {
   const hoje = new Date();
@@ -20,51 +21,41 @@ export async function GET(req: NextRequest) {
   const fim = new Date(ano, mes, 1);
   const carteiraId = await getCarteiraAtivaId();
 
-  const vendas = await prisma.lancamento.findMany({
+  // Ativos que tiveram venda no mês (na carteira).
+  const vendasMes = await prisma.lancamento.findMany({
     where: { tipo: "VENDA", carteiraId, data: { gte: ini, lt: fim } },
     include: { ativo: true },
-    orderBy: { data: "asc" },
   });
+  const ativoIds = [...new Set(vendasMes.map((v) => v.ativoId).filter((x): x is string => !!x))];
+  const tickerDe = new Map(vendasMes.map((v) => [v.ativoId, v.ativo?.ticker ?? ""]));
 
-  // Precisamos do PM ATÉ a data da venda (na MESMA carteira, em centavos).
   const detalhes: {
     data: string; ticker: string; qtd: number; valorVenda: number; pm: number; lucro: number;
   }[] = [];
   let lucroTotalCent = 0;
 
-  for (const v of vendas) {
-    if (!v.ativoId) continue;
-    const lancsAnteriores = await prisma.lancamento.findMany({
-      where: { ativoId: v.ativoId, carteiraId, data: { lt: v.data } },
+  for (const ativoId of ativoIds) {
+    const lancs = await prisma.lancamento.findMany({
+      where: { ativoId, carteiraId },
+      select: { id: true, tipo: true, data: true, ativoId: true, quantidade: true, precoUnit: true, valorTotal: true },
       orderBy: { data: "asc" },
     });
-    let cotas = 0, custoCent = 0;
-    for (const l of lancsAnteriores) {
-      if (l.tipo === "COMPRA" || l.tipo === "REINVESTIMENTO") {
-        cotas += l.quantidade ?? 0;
-        custoCent += toCent(l.valorTotal);
-      } else if (l.tipo === "VENDA" && cotas > 0) {
-        const pmParcial = toReais(custoCent) / cotas;
-        const q = l.quantidade ?? 0;
-        cotas -= q;
-        custoCent -= toCent(multiplicar(pmParcial, q));
-      }
+    const eventos = eventosVenda(lancs as LancamentoInput[]);
+    for (const e of eventos) {
+      if (e.data < ini || e.data >= fim) continue;
+      lucroTotalCent += toCent(e.lucro);
+      detalhes.push({
+        data: e.data.toLocaleDateString("pt-BR"),
+        ticker: tickerDe.get(ativoId) ?? "",
+        qtd: e.quantidade,
+        valorVenda: e.valorVenda,
+        pm: e.precoMedio,
+        lucro: e.lucro,
+      });
     }
-    const pm = cotas > 0 ? toReais(custoCent) / cotas : 0;
-    const qtdVendida = v.quantidade ?? 0;
-    const custoCentBaixa = toCent(multiplicar(pm, qtdVendida));
-    const lucroCent = toCent(v.valorTotal) - custoCentBaixa;
-    lucroTotalCent += lucroCent;
-
-    detalhes.push({
-      data: v.data.toLocaleDateString("pt-BR"),
-      ticker: v.ativo?.ticker ?? "",
-      qtd: qtdVendida,
-      valorVenda: v.valorTotal,
-      pm,
-      lucro: toReais(lucroCent),
-    });
   }
+
+  detalhes.sort((a, b) => a.data.localeCompare(b.data));
 
   const lucroTotal = toReais(lucroTotalCent);
   const darf = lucroTotal > 0 ? Math.round(lucroTotal * 0.20 * 100) / 100 : 0;

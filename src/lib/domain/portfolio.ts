@@ -281,6 +281,58 @@ export function recalcularPortfolio(
   };
 }
 
+export type VendaRealizada = {
+  data: Date;
+  quantidade: number;     // cotas efetivamente baixadas
+  valorVenda: number;     // proporcional, se a venda excedeu a posição
+  precoMedio: number;     // PM no momento da venda
+  custoBaixado: number;   // PM × qtd
+  lucro: number;          // valorVenda − custoBaixado
+};
+
+/**
+ * Apura cada VENDA individualmente (preço médio no momento, lucro realizado),
+ * usando a MESMA lógica em centavos da engine. Base canônica para relatórios
+ * fiscais (DARF) — evita reimplementar o cálculo de PM em float.
+ */
+export function eventosVenda(lancsBrutos: LancamentoInput[]): VendaRealizada[] {
+  const lancs = ordenarLancamentos(lancsBrutos);
+  let custoCent = 0;
+  let cotas = 0;
+  const eventos: VendaRealizada[] = [];
+
+  for (const l of lancs) {
+    const qtd = l.quantidade ?? 0;
+    if (l.tipo === "COMPRA" || l.tipo === "REINVESTIMENTO") {
+      if (qtd <= 0) continue;
+      cotas += qtd;
+      custoCent += toCent(l.valorTotal);
+      continue;
+    }
+    if (l.tipo === "VENDA") {
+      if (qtd <= 0 || cotas <= 0) continue;
+      const qtdReal = Math.min(qtd, cotas);
+      const pm = toReais(custoCent) / cotas;
+      const custoBaixadoCent = toCent(multiplicar(pm, qtdReal));
+      // Se a venda excede a posição, considera só a parte coberta.
+      const valorVenda = qtd > 0 ? (l.valorTotal / qtd) * qtdReal : l.valorTotal;
+      const lucroCent = toCent(valorVenda) - custoBaixadoCent;
+      eventos.push({
+        data: l.data,
+        quantidade: qtdReal,
+        valorVenda,
+        precoMedio: pm,
+        custoBaixado: toReais(custoBaixadoCent),
+        lucro: toReais(lucroCent),
+      });
+      custoCent -= custoBaixadoCent;
+      cotas -= qtdReal;
+      if (cotas <= 1e-9) { cotas = 0; custoCent = 0; }
+    }
+  }
+  return eventos;
+}
+
 /**
  * Cotas atuais (após todas as movimentações) — útil para UIs que só
  * precisam saber a quantidade em aberto sem todo o estado.

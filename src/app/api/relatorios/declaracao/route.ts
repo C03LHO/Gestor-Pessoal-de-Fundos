@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCarteiraAtivaId } from "@/lib/carteira";
-import { toCent, toReais, multiplicar } from "@/lib/money";
+import { recalcularAtivo, type LancamentoInput } from "@/lib/domain/portfolio";
 
 /**
  * Relatório "Bens e Direitos" para IR. Para cada ativo, calcula a posição
- * em 31/12/ano: quantidade × preço médio (custo declarado), em centavos.
+ * em 31/12/ano: quantidade × preço médio (custo declarado).
  *
- * Query: ?ano=2026 — isola pela carteira ativa.
+ * Query: ?ano=2026 — isola pela carteira ativa e usa a engine de carteira
+ * (preço médio em centavos) em vez de recalcular à mão.
  */
 export async function GET(req: NextRequest) {
   const ano = Number(req.nextUrl.searchParams.get("ano") ?? new Date().getFullYear());
@@ -23,26 +24,18 @@ export async function GET(req: NextRequest) {
   type Linha = { ticker: string; nome: string; cotas: number; precoMedio: number; valor: number };
   const linhas: Linha[] = [];
   for (const a of ativos) {
-    let cotas = 0, custoCent = 0;
-    for (const l of a.lancamentos) {
-      if (l.tipo === "COMPRA" || l.tipo === "REINVESTIMENTO") {
-        cotas += l.quantidade ?? 0;
-        custoCent += toCent(l.valorTotal);
-      } else if (l.tipo === "VENDA" && cotas > 0) {
-        const pm = toReais(custoCent) / cotas;
-        const q = l.quantidade ?? 0;
-        cotas -= q;
-        custoCent -= toCent(multiplicar(pm, q));
-      }
-    }
-    if (cotas <= 0) continue;
-    const investido = toReais(custoCent);
+    if (a.lancamentos.length === 0) continue;
+    const estado = recalcularAtivo(
+      { id: a.id, ticker: a.ticker, nome: a.nome, segmento: a.segmento, precoAtual: a.precoAtual },
+      a.lancamentos as LancamentoInput[],
+    );
+    if (estado.cotas <= 0) continue;
     linhas.push({
       ticker: a.ticker,
       nome: a.nome ?? "",
-      cotas,
-      precoMedio: investido / cotas,
-      valor: investido,
+      cotas: estado.cotas,
+      precoMedio: estado.precoMedio,
+      valor: estado.custoTotal,
     });
   }
 
