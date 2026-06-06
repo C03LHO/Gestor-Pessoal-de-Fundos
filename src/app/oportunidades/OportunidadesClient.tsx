@@ -26,11 +26,17 @@ type Op = {
   scoreOportunidade: number;
   cotasAtuais: number;
   investido: number;
+  metaTipo: "VALOR" | "COTAS";
   metaInvestimento: number;
+  metaCotas: number;
   progressoMeta: number;
   cotasParaMeta: number;
   faltaInvestir: number;
 };
+
+type MetaPayload =
+  | { metaTipo: "VALOR"; metaInvestimento: number }
+  | { metaTipo: "COTAS"; metaCotas: number };
 
 const CLASSE_INFO: Record<ClasseValuation, { rotulo: string; cor: string; bg: string; border: string }> = {
   muito_barato: { rotulo: "Muito barato", cor: "text-emerald-300", bg: "bg-emerald-500/15", border: "border-emerald-500/30" },
@@ -81,17 +87,20 @@ export function OportunidadesClient({ oportunidades }: { oportunidades: Op[] }) 
     } finally { setAdicionando(false); }
   }
 
-  async function salvarMeta(ticker: string, valor: number) {
+  async function salvarMeta(ticker: string, payload: MetaPayload) {
     const items = await (await fetch("/api/watchlist")).json();
     const item = items.find((i: any) => i.ticker === ticker);
     if (!item) return;
     const r = await fetch(`/api/watchlist/${item.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ metaInvestimento: valor }),
+      body: JSON.stringify(payload),
     });
     if (!r.ok) { toast("erro", await mensagemErro(r)); return; }
-    toast("sucesso", `Meta de ${ticker} atualizada para ${brl(valor)}`);
+    const desc = payload.metaTipo === "COTAS"
+      ? `${num(payload.metaCotas, 0)} cotas`
+      : brl(payload.metaInvestimento);
+    toast("sucesso", `Meta de ${ticker} atualizada para ${desc}`);
     setEditandoMeta(null);
     router.refresh();
   }
@@ -102,7 +111,7 @@ export function OportunidadesClient({ oportunidades }: { oportunidades: Op[] }) 
       fetch(`/api/watchlist/${i.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ metaInvestimento: valor }),
+        body: JSON.stringify({ metaTipo: "VALOR", metaInvestimento: valor }),
       })
     ));
     toast("sucesso", `Meta de ${brl(valor)} aplicada a todos`);
@@ -205,7 +214,7 @@ export function OportunidadesClient({ oportunidades }: { oportunidades: Op[] }) 
       {editandoMeta && (
         <MetaEditor
           op={editandoMeta}
-          onSalvar={(v) => salvarMeta(editandoMeta.ticker, v)}
+          onSalvar={(payload) => salvarMeta(editandoMeta.ticker, payload)}
           onClose={() => setEditandoMeta(null)}
         />
       )}
@@ -383,7 +392,12 @@ function OportunidadeCard({
       {/* Progresso da meta */}
       <div className="mt-3 mb-2">
         <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
-          <span><Target className="inline" size={10} /> Meta {brl(o.metaInvestimento)}</span>
+          <span>
+            <Target className="inline" size={10} /> Meta{" "}
+            {o.metaTipo === "COTAS"
+              ? `${num(o.metaCotas, 0)} cotas (${brl(o.metaInvestimento)})`
+              : brl(o.metaInvestimento)}
+          </span>
           <span>{pct(o.progressoMeta)}</span>
         </div>
         <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
@@ -424,16 +438,33 @@ function Stat({ label, valor, cor }: { label: string; valor: string; cor?: strin
 }
 
 function MetaEditor({ op, onSalvar, onClose }:
-  { op: Op; onSalvar: (v: number) => void; onClose: () => void }) {
+  { op: Op; onSalvar: (payload: MetaPayload) => void; onClose: () => void }) {
+  const [tipo, setTipo] = useState<"VALOR" | "COTAS">(op.metaTipo);
   const [valor, setValor] = useState(op.metaInvestimento);
-  const presets = [5000, 10000, 15000, 20000, 30000, 50000];
-  const cotasNecessarias = op.precoAtual > 0 ? Math.ceil(valor / op.precoAtual) : 0;
+  const [cotas, setCotas] = useState(op.metaCotas || op.cotasAtuais || 0);
+  const presetsValor = [5000, 10000, 15000, 20000, 30000, 50000];
+  const presetsCotas = [10, 50, 100, 200, 500, 1000];
+
+  // Meta efetiva em R$ e em cotas, conforme o tipo escolhido.
+  const metaValorEfetiva = tipo === "COTAS" ? cotas * op.precoAtual : valor;
+  const metaCotasEfetiva = tipo === "COTAS"
+    ? cotas
+    : (op.precoAtual > 0 ? Math.ceil(valor / op.precoAtual) : 0);
+  const faltaCotas = Math.max(0, metaCotasEfetiva - op.cotasAtuais);
+  const progresso = tipo === "COTAS"
+    ? (cotas > 0 ? Math.min(1, op.cotasAtuais / cotas) : 0)
+    : (valor > 0 ? Math.min(1, op.investido / valor) : 0);
 
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onEsc);
     return () => window.removeEventListener("keydown", onEsc);
   }, [onClose]);
+
+  function salvar() {
+    if (tipo === "COTAS") onSalvar({ metaTipo: "COTAS", metaCotas: cotas });
+    else onSalvar({ metaTipo: "VALOR", metaInvestimento: valor });
+  }
 
   return (
     <div
@@ -450,68 +481,117 @@ function MetaEditor({ op, onSalvar, onClose }:
             <div className="text-[10px] uppercase tracking-wider text-zinc-500">Meta de investimento</div>
             <h2 className="font-semibold text-lg">{op.ticker}</h2>
           </div>
-          <button onClick={onClose} className="text-zinc-500 p-2 -mr-2"><X size={20} /></button>
+          <button onClick={onClose} className="text-zinc-500 p-2 -mr-2" aria-label="Fechar"><X size={20} /></button>
         </div>
 
         <div className="p-5 space-y-4">
-          <div>
-            <label className="label">Valor da meta (R$)</label>
-            <input
-              type="number" min={0} step={500}
-              value={valor}
-              onChange={(e) => setValor(Number(e.target.value))}
-              className="input text-lg font-semibold"
-              autoFocus
-            />
-          </div>
-
-          {/* mobile fix: 2col em mobile pra target não ficar apertado */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-            {presets.map((p) => (
+          {/* Toggle do tipo de meta */}
+          <div className="grid grid-cols-2 gap-1.5">
+            {(["VALOR", "COTAS"] as const).map((t) => (
               <button
-                key={p}
-                onClick={() => setValor(p)}
+                key={t}
+                onClick={() => setTipo(t)}
                 className={cn(
-                  "py-2 text-xs rounded-md border",
-                  valor === p ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
-                              : "border-zinc-800 text-zinc-400",
+                  "min-h-[44px] rounded-lg border text-sm font-medium transition",
+                  tipo === t
+                    ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
+                    : "border-zinc-800 text-zinc-400",
                 )}
               >
-                {brl(p).replace(",00", "")}
+                {t === "VALOR" ? "Por valor (R$)" : "Por nº de cotas"}
               </button>
             ))}
           </div>
 
+          {tipo === "VALOR" ? (
+            <>
+              <div>
+                <label className="label">Valor da meta (R$)</label>
+                <input
+                  type="number" min={0} step={500}
+                  value={valor}
+                  onChange={(e) => setValor(Number(e.target.value))}
+                  className="input text-lg font-semibold"
+                  inputMode="decimal"
+                  autoFocus
+                />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                {presetsValor.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setValor(p)}
+                    className={cn(
+                      "py-2 text-xs rounded-md border",
+                      valor === p ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
+                                  : "border-zinc-800 text-zinc-400",
+                    )}
+                  >
+                    {brl(p).replace(",00", "")}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="label">Meta em nº de cotas</label>
+                <input
+                  type="number" min={0} step={1}
+                  value={cotas}
+                  onChange={(e) => setCotas(Number(e.target.value))}
+                  className="input text-lg font-semibold"
+                  inputMode="numeric"
+                  autoFocus
+                />
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  ≈ {brl(metaValorEfetiva)} ao preço atual ({brl(op.precoAtual)}/cota)
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {presetsCotas.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setCotas(p)}
+                    className={cn(
+                      "py-2 text-xs rounded-md border",
+                      cotas === p ? "border-emerald-500/60 bg-emerald-500/10 text-emerald-300"
+                                  : "border-zinc-800 text-zinc-400",
+                    )}
+                  >
+                    {p} cotas
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
           <div className="bg-zinc-900 rounded-lg p-3 space-y-1 text-sm">
             <div className="flex justify-between">
-              <span className="text-zinc-500">Já investido</span>
-              <span className="tabular-nums">{brl(op.investido)}</span>
+              <span className="text-zinc-500">Já tem</span>
+              <span className="tabular-nums">{num(op.cotasAtuais, 0)} cotas ({brl(op.investido)})</span>
             </div>
             <div className="flex justify-between">
               <span className="text-zinc-500">Falta</span>
-              <span className="tabular-nums text-emerald-400">{brl(Math.max(0, valor - op.investido))}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-zinc-500">Cotas a comprar</span>
-              <span className="tabular-nums">
-                {Math.max(0, cotasNecessarias - op.cotasAtuais)} × {brl(op.precoAtual)}
+              <span className="tabular-nums text-emerald-400">
+                {faltaCotas} cotas ({brl(faltaCotas * op.precoAtual)})
               </span>
             </div>
             <div className="border-t border-zinc-800 pt-2 mt-2 flex justify-between">
               <span className="text-zinc-500">Progresso</span>
               <span className={cn(
                 "font-medium",
-                op.investido >= valor ? "text-emerald-400" : "text-zinc-300",
+                progresso >= 1 ? "text-emerald-400" : "text-zinc-300",
               )}>
-                {pct(valor > 0 ? Math.min(1, op.investido / valor) : 0)}
+                {pct(progresso)}
               </span>
             </div>
           </div>
 
           <button
-            onClick={() => onSalvar(valor)}
+            onClick={salvar}
             className="btn w-full"
-            disabled={valor < 0}
+            disabled={(tipo === "VALOR" && valor < 0) || (tipo === "COTAS" && cotas < 0)}
           >
             Salvar meta
           </button>

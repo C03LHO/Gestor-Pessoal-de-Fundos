@@ -163,7 +163,9 @@ model CryptoHistoryCache {
 model WatchlistAtivo {
   id                String   @id @default(cuid())
   ticker            String   @unique
-  metaInvestimento  Float    @default(10000)
+  metaInvestimento  Float    @default(10000) // meta em R$ (usada quando metaTipo = VALOR)
+  metaTipo          String   @default("VALOR") // "VALOR" | "COTAS"
+  metaCotas         Float    @default(0)       // meta em nº de cotas (usada quando metaTipo = COTAS)
   ordem             Int      @default(0)
   notas             String?
   criadoEm          DateTime @default(now())

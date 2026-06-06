@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { TrendingUp, ArrowRight } from "lucide-react";
+import { TrendingUp, ArrowRight, AlertTriangle } from "lucide-react";
 import { Money } from "@/components/cripto/Money";
 import { Sparkline } from "@/components/cripto/Sparkline";
 import { TendenciaBadge } from "@/components/cripto/TendenciaBadge";
@@ -72,6 +72,16 @@ export function DashboardCriptoClient({
   const posicoesAbertas = posicoes.filter((p) => p.quantidade > 0);
   const oportunidadesOrdenadas = [...mercado].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
 
+  // Alerta de variação brusca: ativos que você possui com |Δ24h| >= 10%.
+  const LIMIAR_VARIACAO_24H = 10;
+  const alertasVariacao = posicoesAbertas
+    .map((p) => {
+      const v = mercado.find((x) => x.cryptoId === p.cryptoId)?.variacao24h ?? null;
+      return v != null && Math.abs(v) >= LIMIAR_VARIACAO_24H ? { symbol: p.symbol, v } : null;
+    })
+    .filter((x): x is { symbol: string; v: number } => x !== null)
+    .sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
+
   // Stats do desempenho 30d
   const valores = valorCarteiraSerie.map((s) => s.v).filter((v) => v > 0);
   const maxValor = valores.length ? Math.max(...valores) : 0;
@@ -97,6 +107,25 @@ export function DashboardCriptoClient({
           </span>
         )}
       </div>
+
+      {/* Alerta de variação brusca nos ativos da carteira */}
+      {alertasVariacao.length > 0 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 flex items-start gap-2">
+          <AlertTriangle size={16} className="text-amber-300 shrink-0 mt-0.5" />
+          <div className="text-sm text-amber-100">
+            <span className="font-semibold">Variação brusca em 24h: </span>
+            {alertasVariacao.map((a, i) => (
+              <span key={a.symbol}>
+                {i > 0 && ", "}
+                {a.symbol}{" "}
+                <span className={a.v >= 0 ? "text-emerald-300" : "text-rose-300"}>
+                  {a.v >= 0 ? "+" : ""}{a.v.toFixed(1)}%
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* (A) KPIs principais — 5 colunas em desktop */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

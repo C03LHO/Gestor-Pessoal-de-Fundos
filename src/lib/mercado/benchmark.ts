@@ -7,9 +7,11 @@ import { fetchTimeout } from "./fetch-timeout";
 
 const UA = "Mozilla/5.0 (compatible; FundosApp/1.0)";
 
-export async function rentabilidadeIfix(meses = 12): Promise<number | null> {
-  // XFIX11 (ETF que rastreia IFIX) e BOVA11 como fallback. Yahoo não expõe ^IFIX puro.
-  const tickers = ["XFIX11.SA"];
+/**
+ * Rentabilidade acumulada de um ticker do Yahoo nos últimos N meses,
+ * via candles mensais. Tenta cada ticker até obter dados.
+ */
+async function rentabilidadeYahoo(tickers: string[], meses: number): Promise<number | null> {
   for (const t of tickers) {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${t}?interval=1mo&range=${meses + 1}mo`;
     try {
@@ -23,6 +25,21 @@ export async function rentabilidadeIfix(meses = 12): Promise<number | null> {
     } catch {}
   }
   return null;
+}
+
+export async function rentabilidadeIfix(meses = 12): Promise<number | null> {
+  // XFIX11 (ETF que rastreia IFIX). Yahoo não expõe ^IFIX puro.
+  return rentabilidadeYahoo(["XFIX11.SA"], meses);
+}
+
+export async function rentabilidadeIbov(meses = 12): Promise<number | null> {
+  // ^BVSP é o índice Ibovespa; BOVA11 como fallback (ETF que o rastreia).
+  return rentabilidadeYahoo(["^BVSP", "BOVA11.SA"], meses);
+}
+
+export async function rentabilidadeBtc(meses = 12): Promise<number | null> {
+  // BTC em BRL direto no Yahoo (evita rate-limit do CoinGecko).
+  return rentabilidadeYahoo(["BTC-BRL"], meses);
 }
 
 export async function rentabilidadeCdi(meses = 12): Promise<number | null> {

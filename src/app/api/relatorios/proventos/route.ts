@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { somarLista } from "@/lib/money";
+import { getCarteiraAtivaId } from "@/lib/carteira";
 
 /**
  * Relatório anual de proventos recebidos. Retorna CSV pronto para
@@ -12,9 +13,10 @@ export async function GET(req: NextRequest) {
   const ano = Number(req.nextUrl.searchParams.get("ano") ?? new Date().getFullYear());
   const ini = new Date(ano, 0, 1);
   const fim = new Date(ano + 1, 0, 1);
+  const carteiraId = await getCarteiraAtivaId();
 
   const divs = await prisma.lancamento.findMany({
-    where: { tipo: "DIVIDENDO", data: { gte: ini, lt: fim } },
+    where: { tipo: "DIVIDENDO", carteiraId, data: { gte: ini, lt: fim } },
     include: { ativo: true },
     orderBy: { data: "asc" },
   });

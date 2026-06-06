@@ -34,6 +34,7 @@ const principaisCripto = [
 
 const secundariosCripto = [
   { href: "/cripto/graficos",      label: "Gráficos",      icon: LineChart },
+  { href: "/cripto/relatorios",    label: "Relatórios",    icon: FileText },
   { href: "/configuracoes",        label: "Configurações", icon: Settings },
 ];
 

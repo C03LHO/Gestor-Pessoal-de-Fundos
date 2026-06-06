@@ -71,7 +71,7 @@ export function BuscaGlobal() {
                 onChange={(e) => setQ(e.target.value)}
                 className="flex-1 bg-transparent outline-none text-base"
               />
-              <button onClick={() => setAberto(false)} className="text-zinc-500"><X size={18} /></button>
+              <button onClick={() => setAberto(false)} className="text-zinc-500" aria-label="Fechar busca"><X size={18} /></button>
             </div>
             <div className="max-h-[60vh] overflow-y-auto">
               {res.ativos.length === 0 && res.lancamentos.length === 0 && q.trim() && (

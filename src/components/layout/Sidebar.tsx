@@ -27,6 +27,7 @@ const itensCripto = [
   { href: "/cripto/graficos",      label: "Gráficos",      icon: LineChart },
   { href: "/cripto/carteira",      label: "Carteira",      icon: Coins },
   { href: "/cripto/lancamentos",   label: "Lançamentos",   icon: ListPlus },
+  { href: "/cripto/relatorios",    label: "Relatórios",    icon: FileText },
   { href: "/configuracoes",        label: "Config",        icon: Settings },
 ];
 

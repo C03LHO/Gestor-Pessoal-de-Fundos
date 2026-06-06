@@ -1,5 +1,6 @@
 import { brl } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { getCarteiraAtivaId } from "@/lib/carteira";
 import { DarfClient } from "./DarfClient";
 
 export const dynamic = "force-dynamic";
@@ -7,11 +8,13 @@ export const dynamic = "force-dynamic";
 export default async function RelatoriosPage() {
   const anoAtual = new Date().getFullYear();
   const anos = [anoAtual, anoAtual - 1, anoAtual - 2];
+  const carteiraId = await getCarteiraAtivaId();
 
   const totalAno = await prisma.lancamento.aggregate({
     _sum: { valorTotal: true },
     where: {
       tipo: "DIVIDENDO",
+      carteiraId,
       data: { gte: new Date(anoAtual, 0, 1), lt: new Date(anoAtual + 1, 0, 1) },
     },
   });

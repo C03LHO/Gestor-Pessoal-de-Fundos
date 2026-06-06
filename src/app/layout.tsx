@@ -35,8 +35,9 @@ export const viewport = {
   themeColor: "#09090b",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Acessibilidade: permite o usuário dar zoom (antes estava travado em 1x).
+  maximumScale: 5,
+  userScalable: true,
   viewportFit: "cover" as const,
 };
 

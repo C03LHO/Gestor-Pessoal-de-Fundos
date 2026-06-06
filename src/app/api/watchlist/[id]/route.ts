@@ -5,6 +5,8 @@ import { parseBody } from "@/lib/api";
 
 const patchSchema = z.object({
   metaInvestimento: z.number().min(0).optional(),
+  metaTipo: z.enum(["VALOR", "COTAS"]).optional(),
+  metaCotas: z.number().min(0).optional(),
   notas: z.string().nullable().optional(),
   ordem: z.number().int().optional(),
 });

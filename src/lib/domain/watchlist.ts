@@ -76,7 +76,9 @@ export type Oportunidade = {
   scoreOportunidade: number; // 0..100 (alias de valuation.score)
   cotasAtuais: number;
   investido: number;
-  metaInvestimento: number;
+  metaTipo: "VALOR" | "COTAS";
+  metaInvestimento: number;   // R$ — efetivo (se meta por COTAS, = metaCotas × preço)
+  metaCotas: number;          // nº de cotas alvo (relevante quando metaTipo = COTAS)
   progressoMeta: number;
   cotasParaMeta: number;
   faltaInvestir: number;
@@ -130,8 +132,30 @@ export async function calcularOportunidades(carteiraId?: string): Promise<Oportu
     const precosHistoricos = historico.precos.filter((p) => p !== historico.precoAtual);
     const valuation = analisarValuation(precosHistoricos, historico.precoAtual);
 
-    const faltaInvestir = Math.max(0, w.metaInvestimento - investido);
-    const cotasParaMeta = historico.precoAtual > 0 ? Math.ceil(faltaInvestir / historico.precoAtual) : 0;
+    // Meta pode ser por VALOR (R$) ou por COTAS (quantidade-alvo). Os campos
+    // metaTipo/metaCotas são lidos via ponte porque o client Prisma só passa a
+    // conhecê-los após `prisma generate` (rodado no start-fundos.bat).
+    const metaTipo = ((w as any).metaTipo === "COTAS" ? "COTAS" : "VALOR") as "VALOR" | "COTAS";
+    const metaCotas = Number((w as any).metaCotas ?? 0);
+    const preco = historico.precoAtual;
+
+    let metaInvestimento: number;
+    let progressoMeta: number;
+    let faltaInvestir: number;
+    let cotasParaMeta: number;
+
+    if (metaTipo === "COTAS") {
+      metaInvestimento = metaCotas * preco; // R$ equivalente, p/ totais e UI legacy
+      progressoMeta = metaCotas > 0 ? cotas / metaCotas : 0;
+      const faltaCotas = Math.max(0, metaCotas - cotas);
+      cotasParaMeta = Math.ceil(faltaCotas);
+      faltaInvestir = faltaCotas * preco;
+    } else {
+      metaInvestimento = w.metaInvestimento;
+      faltaInvestir = Math.max(0, metaInvestimento - investido);
+      cotasParaMeta = preco > 0 ? Math.ceil(faltaInvestir / preco) : 0;
+      progressoMeta = metaInvestimento > 0 ? investido / metaInvestimento : 0;
+    }
 
     oportunidades.push({
       ticker: w.ticker,
@@ -139,7 +163,7 @@ export async function calcularOportunidades(carteiraId?: string): Promise<Oportu
       segmento: ativo?.segmento ?? null,
       ordem: w.ordem,
       notas: w.notas,
-      precoAtual: historico.precoAtual,
+      precoAtual: preco,
       janelaDias: historico.precos.length,
       valuation,
       // Aliases legacy (não usados pela UI nova, mas mantidos por compat.)
@@ -151,8 +175,10 @@ export async function calcularOportunidades(carteiraId?: string): Promise<Oportu
       scoreOportunidade: valuation.score,
       cotasAtuais: cotas,
       investido,
-      metaInvestimento: w.metaInvestimento,
-      progressoMeta: w.metaInvestimento > 0 ? investido / w.metaInvestimento : 0,
+      metaTipo,
+      metaInvestimento,
+      metaCotas,
+      progressoMeta,
       cotasParaMeta,
       faltaInvestir,
     });

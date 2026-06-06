@@ -3,7 +3,7 @@ import { calcularPosicoes, resumoCarteira } from "@/lib/domain/posicao";
 import { previsaoProximoMes } from "@/lib/domain/previsao";
 import { getCarteiraAtivaId } from "@/lib/carteira";
 import { brl, dataBR, pct } from "@/lib/format";
-import { rentabilidadeIfix, rentabilidadeCdi } from "@/lib/mercado/benchmark";
+import { rentabilidadeIfix, rentabilidadeCdi, rentabilidadeIbov, rentabilidadeBtc } from "@/lib/mercado/benchmark";
 import { somarLista } from "@/lib/money";
 import { cn } from "@/lib/cn";
 
@@ -15,7 +15,7 @@ export default async function ResumoPage() {
   const seteDiasAtras = new Date();
   seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
 
-  const [divs, compras, posicoes, previsao, ifix, cdi] = await Promise.all([
+  const [divs, compras, posicoes, previsao, ifix, cdi, ibov, btc] = await Promise.all([
     prisma.lancamento.findMany({
       where: { tipo: "DIVIDENDO", data: { gte: seteDiasAtras }, carteiraId },
       include: { ativo: true },
@@ -30,6 +30,8 @@ export default async function ResumoPage() {
     previsaoProximoMes(carteiraId),
     rentabilidadeIfix(12),
     rentabilidadeCdi(12),
+    rentabilidadeIbov(12),
+    rentabilidadeBtc(12),
   ]);
 
   const resumoP = resumoCarteira(posicoes);
@@ -60,8 +62,10 @@ export default async function ResumoPage() {
           <BenchRow nome="Minha carteira" valor={rentCarteira12m} destaque />
           <BenchRow nome="IFIX"           valor={ifix} />
           <BenchRow nome="CDI"            valor={cdi} />
+          <BenchRow nome="Ibovespa"       valor={ibov} />
+          <BenchRow nome="Bitcoin"        valor={btc} />
         </div>
-        {(ifix == null || cdi == null) && (
+        {(ifix == null || cdi == null || ibov == null || btc == null) && (
           <p className="text-[10px] text-zinc-500 mt-3">
             Algum benchmark indisponível agora. Tente recarregar mais tarde.
           </p>
