@@ -24,6 +24,8 @@ export type Indicadores = {
     proximidade: "SUPORTE" | "RESISTENCIA" | "MEIO";
   };
   volatilidade: { valor: number; nivel: "BAIXA" | "MEDIA" | "ALTA" };
+  rsi: { valor: number; zona: "SOBREVENDA" | "NEUTRO" | "SOBRECOMPRA" } | null;
+  macd: { macd: number; sinal: number; histograma: number; cruzamento: "ALTA" | "BAIXA" | "NEUTRO" } | null;
 };
 
 export type Analise = {
@@ -74,6 +76,77 @@ function percentil(precoAtual: number, todos: number[]): number {
   let menores = 0;
   for (const p of todos) if (p <= precoAtual) menores++;
   return (menores / todos.length) * 100;
+}
+
+/**
+ * RSI (Wilder, período padrão 14) sobre uma série de preços. Retorna o último
+ * valor (0–100) ou null se não há pontos suficientes.
+ */
+export function rsi(valores: number[], periodo = 14): number | null {
+  if (valores.length < periodo + 1) return null;
+  let ganho = 0;
+  let perda = 0;
+  for (let i = 1; i <= periodo; i++) {
+    const d = valores[i] - valores[i - 1];
+    if (d >= 0) ganho += d;
+    else perda -= d;
+  }
+  let avgGanho = ganho / periodo;
+  let avgPerda = perda / periodo;
+  for (let i = periodo + 1; i < valores.length; i++) {
+    const d = valores[i] - valores[i - 1];
+    const g = d > 0 ? d : 0;
+    const p = d < 0 ? -d : 0;
+    avgGanho = (avgGanho * (periodo - 1) + g) / periodo;
+    avgPerda = (avgPerda * (periodo - 1) + p) / periodo;
+  }
+  if (avgPerda === 0) return 100;
+  const rs = avgGanho / avgPerda;
+  return 100 - 100 / (1 + rs);
+}
+
+/** Série EMA alinhada ao input (null antes de haver pontos suficientes). */
+function emaSeries(valores: number[], periodo: number): (number | null)[] {
+  const k = 2 / (periodo + 1);
+  const out: (number | null)[] = [];
+  let prev = 0;
+  for (let i = 0; i < valores.length; i++) {
+    if (i < periodo - 1) { out.push(null); continue; }
+    if (i === periodo - 1) {
+      prev = valores.slice(0, periodo).reduce((a, b) => a + b, 0) / periodo;
+      out.push(prev);
+      continue;
+    }
+    prev = valores[i] * k + prev * (1 - k);
+    out.push(prev);
+  }
+  return out;
+}
+
+/**
+ * MACD (12,26,9). Retorna os últimos valores de linha MACD, sinal e histograma,
+ * ou null se a série for curta demais.
+ */
+export function macd(
+  valores: number[],
+  rapido = 12,
+  lento = 26,
+  sinalP = 9,
+): { macd: number; sinal: number; histograma: number } | null {
+  if (valores.length < lento + sinalP) return null;
+  const emaR = emaSeries(valores, rapido);
+  const emaL = emaSeries(valores, lento);
+  const linha: number[] = [];
+  for (let i = 0; i < valores.length; i++) {
+    if (emaR[i] == null || emaL[i] == null) continue;
+    linha.push((emaR[i] as number) - (emaL[i] as number));
+  }
+  if (linha.length < sinalP) return null;
+  const sinalSerie = emaSeries(linha, sinalP);
+  const macdVal = linha[linha.length - 1];
+  const sinalVal = sinalSerie[sinalSerie.length - 1];
+  if (sinalVal == null) return null;
+  return { macd: macdVal, sinal: sinalVal, histograma: macdVal - sinalVal };
 }
 
 export function analisar(historico: HistoricoCripto, precoAtual: number): Analise {
@@ -142,6 +215,22 @@ export function analisar(historico: HistoricoCripto, precoAtual: number): Analis
   if (volRel < 3) volNivel = "BAIXA";
   else if (volRel > 8) volNivel = "ALTA";
 
+  // 6. RSI(14) e MACD(12,26,9) sobre toda a série diária.
+  const rsiVal = rsi(precosTodos);
+  const rsiInd = rsiVal == null ? null : {
+    valor: rsiVal,
+    zona: (rsiVal <= 30 ? "SOBREVENDA" : rsiVal >= 70 ? "SOBRECOMPRA" : "NEUTRO") as
+      "SOBREVENDA" | "NEUTRO" | "SOBRECOMPRA",
+  };
+  const macdRaw = macd(precosTodos);
+  const macdInd = macdRaw == null ? null : {
+    macd: macdRaw.macd,
+    sinal: macdRaw.sinal,
+    histograma: macdRaw.histograma,
+    cruzamento: (macdRaw.histograma > 0 ? "ALTA" : macdRaw.histograma < 0 ? "BAIXA" : "NEUTRO") as
+      "ALTA" | "BAIXA" | "NEUTRO",
+  };
+
   // === SCORE ===
   // posição na faixa histórica: 35% (menor percentil = mais atrativo)
   const scorePercentil = 100 - pct; // 0..100
@@ -197,6 +286,8 @@ export function analisar(historico: HistoricoCripto, precoAtual: number): Analis
       momentum: { valor: momentumValor, d7, d30, d90 },
       suporteResistencia: { distMinPct, distMaxPct, proximidade },
       volatilidade: { valor: volRel, nivel: volNivel },
+      rsi: rsiInd,
+      macd: macdInd,
     },
     resumo,
     insuficiente: false,

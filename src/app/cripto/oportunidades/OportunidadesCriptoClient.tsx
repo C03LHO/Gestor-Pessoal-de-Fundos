@@ -172,6 +172,12 @@ function CardAnalise({ item }: { item: Item }) {
                 valor={`7d ${ana.indicadores.momentum.d7.toFixed(1)}% / 30d ${ana.indicadores.momentum.d30.toFixed(1)}% / 90d ${ana.indicadores.momentum.d90.toFixed(1)}%`} />
               <Ind label="Suporte/Resistência" valor={ana.indicadores.suporteResistencia.proximidade} />
               <Ind label="Volatilidade (30d)" valor={`${ana.indicadores.volatilidade.valor.toFixed(2)}% (${ana.indicadores.volatilidade.nivel})`} />
+              {ana.indicadores.rsi && (
+                <Ind label="RSI (14)" valor={`${ana.indicadores.rsi.valor.toFixed(0)} (${ana.indicadores.rsi.zona})`} />
+              )}
+              {ana.indicadores.macd && (
+                <Ind label="MACD (12/26/9)" valor={`hist ${ana.indicadores.macd.histograma >= 0 ? "+" : ""}${ana.indicadores.macd.histograma.toFixed(2)} (${ana.indicadores.macd.cruzamento})`} />
+              )}
             </div>
           )}
         </>
