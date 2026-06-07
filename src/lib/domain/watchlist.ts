@@ -1,5 +1,5 @@
 import { prisma } from "../prisma";
-import { buscarHistorico52s, buscarCotacao } from "../mercado/yahoo";
+import { buscarHistorico52s, buscarCotacao, buscarDividendos } from "../mercado/yahoo";
 import { analisarValuation, type Valuation } from "./valuation";
 import { recalcularAtivo, type LancamentoInput } from "./portfolio";
 
@@ -74,6 +74,7 @@ export type Oportunidade = {
   drawdown: number;
   percentil: number;       // 0..1 — posição linear, mantido por compat
   scoreOportunidade: number; // 0..100 (alias de valuation.score)
+  dy12m: number;             // dividend yield de mercado: proventos/cota 12m ÷ preço atual
   cotasAtuais: number;
   investido: number;
   metaTipo: "VALOR" | "COTAS";
@@ -95,11 +96,13 @@ export async function calcularOportunidades(carteiraId?: string): Promise<Oportu
     },
   });
 
-  // Busca todos os históricos do Yahoo em paralelo (com cache de 1h)
-  const historicos = await Promise.all(
-    watchlist.map((w) => buscarHistorico52s(w.ticker).catch(() => null)),
-  );
+  // Busca históricos (preços) e proventos do Yahoo em paralelo (com fallback).
+  const [historicos, dividendos] = await Promise.all([
+    Promise.all(watchlist.map((w) => buscarHistorico52s(w.ticker).catch(() => null))),
+    Promise.all(watchlist.map((w) => buscarDividendos(w.ticker, 2).catch(() => []))),
+  ]);
 
+  const limite12m = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
   const oportunidades: Oportunidade[] = [];
 
   for (let i = 0; i < watchlist.length; i++) {
@@ -131,6 +134,12 @@ export async function calcularOportunidades(carteiraId?: string): Promise<Oportu
     // Valuation pela engine central — separa o "atual" do "histórico".
     const precosHistoricos = historico.precos.filter((p) => p !== historico.precoAtual);
     const valuation = analisarValuation(precosHistoricos, historico.precoAtual);
+
+    // DY de mercado: soma dos proventos/cota dos últimos 12m ÷ preço atual.
+    const divPorCota12m = (dividendos[i] ?? [])
+      .filter((d) => d.data >= limite12m)
+      .reduce((s, d) => s + d.valor, 0);
+    const dy12m = historico.precoAtual > 0 ? divPorCota12m / historico.precoAtual : 0;
 
     // Meta pode ser por VALOR (R$) ou por COTAS (quantidade-alvo). Os campos
     // metaTipo/metaCotas são lidos via ponte porque o client Prisma só passa a
@@ -173,6 +182,7 @@ export async function calcularOportunidades(carteiraId?: string): Promise<Oportu
       drawdown: valuation.distMaxima,
       percentil: valuation.posicaoLinear / 100,
       scoreOportunidade: valuation.score,
+      dy12m,
       cotasAtuais: cotas,
       investido,
       metaTipo,

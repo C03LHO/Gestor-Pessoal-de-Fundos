@@ -24,6 +24,7 @@ type Op = {
   drawdown: number;
   percentil: number;
   scoreOportunidade: number;
+  dy12m: number;
   cotasAtuais: number;
   investido: number;
   metaTipo: "VALOR" | "COTAS";
@@ -49,7 +50,7 @@ const CLASSE_INFO: Record<ClasseValuation, { rotulo: string; cor: string; bg: st
 export function OportunidadesClient({ oportunidades }: { oportunidades: Op[] }) {
   const router = useRouter();
   const toast = useToast();
-  const [ordem, setOrdem] = useState<"score" | "percentil" | "minima" | "meta" | "ticker">("score");
+  const [ordem, setOrdem] = useState<"score" | "percentil" | "minima" | "meta" | "dy" | "ticker">("score");
   const [filtroClasse, setFiltroClasse] = useState<ClasseValuation | "todas">("todas");
   const [novoTicker, setNovoTicker] = useState("");
   const [adicionando, setAdicionando] = useState(false);
@@ -64,6 +65,7 @@ export function OportunidadesClient({ oportunidades }: { oportunidades: Op[] }) 
     if (ordem === "percentil") return a.valuation.percentilHistorico - b.valuation.percentilHistorico;
     if (ordem === "minima") return a.valuation.distMinima - b.valuation.distMinima;
     if (ordem === "meta") return a.progressoMeta - b.progressoMeta;
+    if (ordem === "dy") return b.dy12m - a.dy12m;
     return a.ticker.localeCompare(b.ticker);
   });
 
@@ -160,6 +162,7 @@ export function OportunidadesClient({ oportunidades }: { oportunidades: Op[] }) 
             { id: "score",     label: "Score" },
             { id: "percentil", label: "Percentil" },
             { id: "minima",    label: "Perto da mín" },
+            { id: "dy",        label: "Maior DY" },
             { id: "meta",      label: "Falta investir" },
             { id: "ticker",    label: "Ticker" },
           ] as const).map((o) => (
@@ -281,6 +284,11 @@ function OportunidadeCard({
               v.score >= 20 ? "text-amber-300" : "text-rose-300"
             )}>{v.score}</span><span className="text-zinc-600">/100</span>
           </div>
+          {o.dy12m > 0 && (
+            <div className="text-[10px] text-zinc-500">
+              DY 12m <span className="font-semibold tabular-nums text-emerald-400">{pct(o.dy12m)}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -364,6 +372,7 @@ function OportunidadeCard({
             <Stat label="Acima da mín" valor={pct(v.distMinima)} />
             <Stat label="Desconto da máx" valor={pct(v.distMaxima)} cor="text-emerald-400" />
             <Stat label="Volatilidade (CV)" valor={(v.coefVariacao * 100).toFixed(1) + "%"} />
+            <Stat label="DY 12m (mercado)" valor={o.dy12m > 0 ? pct(o.dy12m) : "—"} cor={o.dy12m > 0 ? "text-emerald-400" : undefined} />
             <Stat label="Confiança" valor={v.confianca} cor={confiancaCor} />
           </div>
           {v.motivos.length > 0 && (
