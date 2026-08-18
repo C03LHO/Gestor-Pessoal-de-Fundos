@@ -143,6 +143,16 @@ export async function sincronizarDividendosDeTodos(anos = 5, carteiraId?: string
   return total;
 }
 
+/**
+ * Posição na data, para dimensionar o dividendo.
+ *
+ * Espelha `cotasNaData` de portfolio.ts, com uma diferença deliberada: aqui a
+ * venda nao e limitada a zero. Se um historico inconsistente levasse a posicao
+ * a negativo, o resultado <= 0 faz a distribuicao ser ignorada, que e o lado
+ * seguro do erro. Unificar as duas exigiria converter para LancamentoInput (o
+ * `tipo` do Prisma e string, o da engine e union), e o cast necessario esconderia
+ * justamente o tipo de divergencia que a unificacao pretende evitar.
+ */
 function cotasNoMomento(
   lancs: { tipo: string; data: Date; quantidade: number | null }[],
   data: Date,

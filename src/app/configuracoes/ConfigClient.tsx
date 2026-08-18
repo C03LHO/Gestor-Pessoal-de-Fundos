@@ -340,7 +340,7 @@ function CarteiraItem({ c, podeRemover, onChange }:
   }
 
   async function excluir() {
-    if (!confirm(`Excluir carteira "${c.nome}"? Os lançamentos serão preservados sem vínculo.`)) return;
+    if (!confirm(`Excluir carteira "${c.nome}"? Só é possível se ela não tiver nenhum movimento.`)) return;
     const r = await fetch(`/api/carteiras/${c.id}`, { method: "DELETE" });
     if (!r.ok) { toast("erro", await mensagemErro(r)); return; }
     toast("sucesso", "Carteira excluída");
