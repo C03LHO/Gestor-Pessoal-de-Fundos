@@ -11,16 +11,33 @@ let aplicado = false;
  * - WAL: permite leituras concorrentes a escritas (sem lock global)
  * - synchronous=NORMAL: faster + safe with WAL
  * - busy_timeout: espera 5s em vez de retornar SQLITE_BUSY na hora
+ *
+ * Todos os PRAGMAs passam por $queryRawUnsafe: os que consultam/definem um valor
+ * (journal_mode, busy_timeout) devolvem uma linha de resultado, e o driver rejeita
+ * isso em $executeRawUnsafe ("Execute returned results, which is not allowed in
+ * SQLite"). $queryRawUnsafe também aceita statements sem retorno — devolve [].
+ *
+ * Escopo: journal_mode é gravado no cabeçalho do arquivo .db, então vale para todas
+ * as conexões e sobrevive a restarts. Já synchronous e busy_timeout são por conexão,
+ * e o Prisma mantém um pool — na prática só valem para a conexão que atendeu este
+ * comando. São, portanto, best-effort; não conte com busy_timeout como garantia
+ * contra SQLITE_BUSY em escritas concorrentes.
  */
 export async function aplicarPragmasSqlite() {
   if (aplicado) return;
   try {
-    // journal_mode retorna uma linha com o modo aplicado — usa $queryRawUnsafe.
-    const modo = await prisma.$queryRawUnsafe<Array<{ journal_mode: string }>>("PRAGMA journal_mode=WAL");
-    await prisma.$executeRawUnsafe("PRAGMA synchronous=NORMAL");
-    await prisma.$executeRawUnsafe("PRAGMA busy_timeout=5000");
+    const modo = await prisma.$queryRawUnsafe<Array<{ journal_mode: string }>>(
+      "PRAGMA journal_mode=WAL",
+    );
+    await prisma.$queryRawUnsafe("PRAGMA synchronous=NORMAL");
+    const espera = await prisma.$queryRawUnsafe<Array<{ timeout: number }>>(
+      "PRAGMA busy_timeout=5000",
+    );
     aplicado = true;
-    log.info("db.pragmas_aplicados", { journal_mode: modo?.[0]?.journal_mode });
+    log.info("db.pragmas_aplicados", {
+      journal_mode: modo?.[0]?.journal_mode,
+      busy_timeout: Number(espera?.[0]?.timeout ?? 0),
+    });
   } catch (e: any) {
     log.warn("db.pragmas_falhou", { erro: e?.message });
   }
@@ -35,6 +52,7 @@ export async function aplicarPragmasSqlite() {
 export async function limparCotacoesAntigas() {
   try {
     // Estratégia: mantém o registro de id mais alto (mais recente) por (ticker, data dia)
+    // DELETE não devolve linhas — $executeRawUnsafe é o método correto aqui.
     const result = await prisma.$executeRawUnsafe(`
       DELETE FROM Cotacao
       WHERE id NOT IN (

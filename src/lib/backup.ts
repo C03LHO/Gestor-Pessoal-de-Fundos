@@ -142,8 +142,16 @@ export async function executarBackup(): Promise<{
   // Em modo WAL, escritas recentes ficam no arquivo -wal. Sem um checkpoint,
   // a cópia do data.db pode não conter os últimos commits. TRUNCATE move tudo
   // para o arquivo principal antes de copiar.
+  // wal_checkpoint devolve uma linha (busy|log|checkpointed), então precisa de
+  // $queryRawUnsafe — $executeRawUnsafe rejeita statements com retorno no SQLite.
   try {
-    await prisma.$executeRawUnsafe("PRAGMA wal_checkpoint(TRUNCATE)");
+    const [cp] = await prisma.$queryRawUnsafe<
+      Array<{ busy: number; log: number; checkpointed: number }>
+    >("PRAGMA wal_checkpoint(TRUNCATE)");
+    log.info("backup.checkpoint", {
+      busy: Number(cp?.busy ?? 0),
+      paginas: Number(cp?.checkpointed ?? 0),
+    });
   } catch (e: any) {
     log.warn("backup.checkpoint_falhou", { erro: e?.message });
   }
