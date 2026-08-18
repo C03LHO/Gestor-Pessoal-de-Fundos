@@ -48,6 +48,7 @@ export function ConfigClient({ cfg, ultimaSync, carteiras }:
 
   const [salvando, setSalvando] = useState(false);
   const [saude, setSaude] = useState<any>(null);
+  const [importandoDb, setImportandoDb] = useState(false);
 
   const totalAloc = Object.values(aloc).reduce((s, v) => s + v, 0);
 
@@ -75,6 +76,57 @@ export function ConfigClient({ cfg, ultimaSync, carteiras }:
   async function verificarSaude() {
     const r = await fetch("/api/health");
     setSaude(await r.json());
+  }
+
+  /**
+   * Troca o banco inteiro. Dupla confirmação porque é a operação mais
+   * destrutiva do app: confirmar e depois digitar SUBSTITUIR.
+   */
+  async function importarDb(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.target;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+
+    const mb = (file.size / 1024 / 1024).toFixed(2);
+    if (
+      !confirm(
+        `Substituir TODO o banco atual pelo arquivo "${file.name}" (${mb} MB)?
+
+` +
+          `Uma cópia do banco atual será salva automaticamente antes da troca.`,
+      )
+    ) return;
+
+    if (prompt("Para confirmar, digite SUBSTITUIR (em maiúsculas):") !== "SUBSTITUIR") {
+      toast("erro", "Importação cancelada.");
+      return;
+    }
+
+    setImportandoDb(true);
+    try {
+      const fd = new FormData();
+      fd.append("arquivo", file);
+      const r = await fetch("/api/backup/importar", { method: "POST", body: fd });
+      const res = await r.json().catch(() => null);
+
+      if (!r.ok || !res?.ok) {
+        const detalhe = res?.restaurado ? " O banco anterior foi restaurado automaticamente." : "";
+        toast("erro", (res?.erro ?? "Falha ao importar.") + detalhe);
+        return;
+      }
+
+      toast(
+        "sucesso",
+        `Banco importado: ${res.conferencia.lancamentos} lançamentos · ` +
+          `${res.conferencia.ativos} ativos · ${res.conferencia.carteiras} carteiras`,
+      );
+      router.refresh();
+    } catch (err: any) {
+      toast("erro", "Falha no envio: " + (err?.message ?? "erro desconhecido"));
+    } finally {
+      setImportandoDb(false);
+    }
   }
 
   async function importarJson(e: React.ChangeEvent<HTMLInputElement>) {
@@ -105,7 +157,7 @@ export function ConfigClient({ cfg, ultimaSync, carteiras }:
         toast("erro", "JSON corrompido. Abra em um editor pra ver se foi cortado.");
         return;
       }
-      if (json?.versao !== 1) {
+      if (json?.versao !== 1 && json?.versao !== 2) {
         toast("erro", "Formato não reconhecido. Esse arquivo não foi gerado pelo Fundos.");
         return;
       }
@@ -122,7 +174,8 @@ export function ConfigClient({ cfg, ultimaSync, carteiras }:
       const res = await r.json();
       toast(
         "sucesso",
-        `Importado: ${res.importados.ativos} ativos · ${res.importados.lancamentos} lançamentos · ${res.importados.carteiras} carteiras`,
+        `Importado: ${res.importados.ativos} ativos · ${res.importados.lancamentos} lançamentos · ` +
+          `${res.importados.carteiras} carteiras · ${res.importados.cryptoTransactions ?? 0} cripto`,
       );
       router.refresh();
     } catch (e: any) {
@@ -267,11 +320,45 @@ export function ConfigClient({ cfg, ultimaSync, carteiras }:
       {/* Backup cloud (rclone) */}
       <BackupCloud />
 
+      {/* Banco completo (.db) — restauracao literal */}
+      <section className="card space-y-4">
+        <h2 className="font-semibold">Banco de dados completo</h2>
+        <p className="text-xs text-zinc-500">
+          Baixa o banco inteiro num arquivo <code>.db</code>. É a cópia mais fiel: restaura
+          exatamente o estado atual, incluindo cripto, watchlist e configurações. Guarde fora
+          deste dispositivo.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <a href="/api/backup/exportar" className="btn-ghost border border-zinc-800 justify-center" download>
+            <Download size={14} /> Exportar banco
+          </a>
+          <label className="btn-ghost border border-amber-900/60 text-amber-300 justify-center cursor-pointer">
+            <Upload size={14} /> {importandoDb ? "Importando..." : "Importar banco"}
+            <input
+              type="file"
+              accept=".db,application/octet-stream"
+              className="hidden"
+              disabled={importandoDb}
+              onChange={importarDb}
+            />
+          </label>
+        </div>
+        <p className="text-[11px] text-amber-500/80">
+          A importação substitui todos os dados atuais. Antes de trocar, o sistema grava
+          automaticamente uma cópia do banco atual em <code>/app/data</code>, que nunca é apagada.
+        </p>
+        <p className="text-[11px] text-zinc-600">
+          O arquivo contém tokens de API e chaves. Trate como segredo.
+        </p>
+      </section>
+
       {/* Export / Import manual */}
       <section className="card space-y-4">
-        <h2 className="font-semibold">Backup manual</h2>
+        <h2 className="font-semibold">Backup manual (JSON)</h2>
         <p className="text-xs text-zinc-500">
-          Para migração ou backup pontual. Para automático use a seção acima.
+          Formato legível, para migração e inspeção. Mescla por id e não apaga nada, mas
+          não restaura configurações nem chaves — para restauração completa use o
+          <code> .db</code> acima.
         </p>
         <div className="grid grid-cols-2 gap-2">
           <a href="/api/export" className="btn-ghost border border-zinc-800 justify-center" download>
