@@ -3,13 +3,20 @@ import { buscarDividendosConfigurado } from "../mercado/dividendos";
 import { enviarParaTodos } from "../push";
 import { log } from "../log";
 import { getCarteiraAtivaId } from "../carteira";
+import {
+  planejarSyncDividendos,
+  observacaoAuto,
+  type LancDividendo,
+} from "./sync-dividendos-plano";
 
 /**
  * Importa todos os dividendos disponíveis para um ativo (até `anos` atrás),
  * tentando Yahoo → Status Invest → Fundamentus → Brapi até obter dados.
  * Cria lançamentos apenas para datas em que o usuário JÁ POSSUÍA cotas.
- * Não duplica datas já existentes.
- * Retorna quantos foram importados.
+ * O pareamento com o que já está gravado (incluindo o caso de a fonte mudar a
+ * convenção de data) fica em `planejarSyncDividendos`, que também garante que
+ * dividendo digitado à mão nunca é sobrescrito.
+ * Retorna quantos foram importados/ajustados.
  */
 export async function sincronizarDividendosDoAtivo(
   ativoId: string,
@@ -33,40 +40,19 @@ export async function sincronizarDividendosDoAtivo(
   }
   log.info("sync-divs.fonte_usada", { ticker: ativo.ticker, fonte, total: divs.length, carteiraId: carteiraAlvo });
 
-  // Mapa por mês (YYYY-MM): cada fonte usa convenção de data diferente
-  // (Yahoo ex-date vs Fundamentus data de pagamento), e o usuário só recebe
-  // uma vez por distribuição.
-  const existentesPorMes = new Map<string, typeof ativo.lancamentos[number]>();
-  for (const l of ativo.lancamentos) {
-    if (l.tipo !== "DIVIDENDO") continue;
-    existentesPorMes.set(l.data.toISOString().slice(0, 7), l);
-  }
+  const existentes: LancDividendo[] = ativo.lancamentos
+    .filter((l) => l.tipo === "DIVIDENDO")
+    .map((l) => ({ id: l.id, data: l.data, valorTotal: l.valorTotal, observacao: l.observacao }));
 
-  const paraCriar: { data: Date; valor: number; valorPorCota: number; cotas: number; key: string }[] = [];
-  // Atualizações: quando uma compra retroativa entrou, o nº de cotas no dia
-  // do dividendo mudou — temos que recalcular o valor do dividendo existente.
-  const paraAtualizar: { id: string; valorAntigo: number; valorNovo: number; cotas: number; valorPorCota: number }[] = [];
+  const plano = planejarSyncDividendos(existentes, divs, (data) =>
+    cotasNoMomento(ativo.lancamentos, data),
+  );
+  const paraCriar = plano.criar;
+  const paraAtualizar = plano.atualizar;
 
-  for (const d of divs) {
-    const key = d.data.toISOString().slice(0, 7);
-    const cotas = cotasNoMomento(ativo.lancamentos, d.data);
-    if (cotas <= 0) continue;
-    const valorEsperado = arred(d.valor * cotas);
-    const existente = existentesPorMes.get(key);
-    if (existente) {
-      // Só atualiza se a diferença for material (>= 1 centavo).
-      if (Math.abs(arred(existente.valorTotal) - valorEsperado) >= 0.01) {
-        paraAtualizar.push({
-          id: existente.id,
-          valorAntigo: existente.valorTotal,
-          valorNovo: valorEsperado,
-          cotas,
-          valorPorCota: d.valor,
-        });
-      }
-      continue;
-    }
-    paraCriar.push({ data: d.data, valor: valorEsperado, valorPorCota: d.valor, cotas, key });
+  const manuaisPreservados = plano.preservados.filter((p) => p.motivo === "manual").length;
+  if (manuaisPreservados > 0) {
+    log.info("sync-divs.manual_preservado", { ticker: ativo.ticker, total: manuaisPreservados });
   }
 
   if (paraCriar.length === 0 && paraAtualizar.length === 0) return 0;
@@ -81,7 +67,7 @@ export async function sincronizarDividendosDoAtivo(
           carteiraId: carteiraAlvo,
           data: p.data,
           valorTotal: p.valor,
-          observacao: `Auto (${fonte}) — ${p.valorPorCota.toFixed(4)}/cota × ${p.cotas}`,
+          observacao: observacaoAuto(fonte, p.valorPorCota, p.cotas),
         },
       }),
     ),
@@ -90,7 +76,7 @@ export async function sincronizarDividendosDoAtivo(
         where: { id: u.id },
         data: {
           valorTotal: u.valorNovo,
-          observacao: `Auto (${fonte}) — ${u.valorPorCota.toFixed(4)}/cota × ${u.cotas} (recalc)`,
+          observacao: observacaoAuto(fonte, u.valorPorCota, u.cotas, true),
         },
       }),
     ),
@@ -126,10 +112,6 @@ export async function sincronizarDividendosDeTodos(anos = 5, carteiraId?: string
     total += await sincronizarDividendosDoAtivo(a.id, anos, carteiraAlvo);
   }
   return total;
-}
-
-function arred(v: number): number {
-  return Math.round(v * 100) / 100;
 }
 
 function cotasNoMomento(
