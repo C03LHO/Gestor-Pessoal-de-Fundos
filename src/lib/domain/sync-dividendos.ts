@@ -104,12 +104,41 @@ export async function sincronizarDividendosDoAtivo(
   return paraCriar.length + paraAtualizar.length;
 }
 
+/**
+ * Sincroniza dividendos de toda a base.
+ *
+ * Com `carteiraId`, opera so nessa carteira. Sem ele, descobre os pares
+ * (ativo, carteira) que de fato tem posicao, em vez de usar a carteira ativa:
+ * a carteira ativa vem de cookie, entao o destino do lancamento dependia de
+ * qual carteira o navegador tinha selecionada na hora da sync. Se fosse uma
+ * carteira sem aquele ativo, `cotas` dava 0 e a distribuicao era descartada
+ * silenciosamente. Derivar do dado tambem torna a funcao chamavel fora de uma
+ * request (scheduler/cron), onde `cookies()` nao existe.
+ */
 export async function sincronizarDividendosDeTodos(anos = 5, carteiraId?: string): Promise<number> {
-  const carteiraAlvo = carteiraId ?? (await getCarteiraAtivaId());
-  const ativos = await prisma.ativo.findMany({ select: { id: true } });
   let total = 0;
-  for (const a of ativos) {
-    total += await sincronizarDividendosDoAtivo(a.id, anos, carteiraAlvo);
+
+  if (carteiraId) {
+    const ativos = await prisma.ativo.findMany({ select: { id: true } });
+    for (const a of ativos) {
+      total += await sincronizarDividendosDoAtivo(a.id, anos, carteiraId);
+    }
+    return total;
+  }
+
+  const pares = await prisma.lancamento.findMany({
+    where: {
+      tipo: { in: ["COMPRA", "REINVESTIMENTO"] },
+      ativoId: { not: null },
+      carteiraId: { not: null },
+    },
+    select: { ativoId: true, carteiraId: true },
+    distinct: ["ativoId", "carteiraId"],
+  });
+
+  log.info("sync-divs.pares", { total: pares.length });
+  for (const par of pares) {
+    total += await sincronizarDividendosDoAtivo(par.ativoId!, anos, par.carteiraId!);
   }
   return total;
 }
