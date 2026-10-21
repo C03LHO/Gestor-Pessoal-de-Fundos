@@ -3,6 +3,7 @@
  * Não exige token. Para FIIs brasileiros, sufixo .SA.
  */
 import { fetchTimeout } from "./fetch-timeout";
+import { CacheLRU } from "../cache";
 
 const UA = "Mozilla/5.0 (compatible; FundosApp/1.0)";
 
@@ -17,6 +18,18 @@ export type DividendoYahoo = {
   data: Date;
   valor: number;
 };
+
+// Reserva usada quando o Yahoo cai: o último dado bom vale por até 30 dias.
+const TRINTA_DIAS_MS = 30 * 24 * 60 * 60 * 1000;
+
+const cacheDividendos = new CacheLRU<DividendoYahoo[]>({
+  max: 400,
+  ttlMs: 6 * 60 * 60 * 1000,
+  staleMs: TRINTA_DIAS_MS,
+  arquivo: process.env.NODE_ENV === "production"
+    ? "/app/data/cache-dividendos.json"
+    : "./.cache-dividendos.json",
+});
 
 const sufixar = (t: string) => (t.includes(".") ? t : `${t}.SA`);
 
@@ -35,17 +48,38 @@ export async function buscarCotacao(ticker: string): Promise<CotacaoYahoo | null
   };
 }
 
-export async function buscarDividendos(ticker: string, anos = 5): Promise<DividendoYahoo[]> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sufixar(ticker)}?interval=1mo&range=${anos}y&events=div`;
-  const r = await fetchTimeout(url, { headers: { "User-Agent": UA } }, 5000);
-  if (!r.ok) throw new Error(`Yahoo HTTP ${r.status}`);
-  const j: any = await r.json();
-  const divs = j?.chart?.result?.[0]?.events?.dividends;
-  if (!divs) return [];
-  return Object.values<any>(divs).map((d) => ({
-    data: new Date(d.date * 1000),
-    valor: d.amount,
-  }));
+/**
+ * `usarCache: false` é para o sync, que grava no banco e tem fallback para
+ * outras fontes — ele precisa do dado do Yahoo de agora, não da reserva.
+ */
+export async function buscarDividendos(
+  ticker: string, anos = 5, { usarCache = true }: { usarCache?: boolean } = {},
+): Promise<DividendoYahoo[]> {
+  const chave = `${ticker.toUpperCase()}|${anos}`;
+  const cached = usarCache ? cacheDividendos.get(chave) : null;
+  if (cached) return reviverDividendos(cached);
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sufixar(ticker)}?interval=1mo&range=${anos}y&events=div`;
+    const r = await fetchTimeout(url, { headers: { "User-Agent": UA } }, 5000);
+    if (!r.ok) throw new Error(`Yahoo HTTP ${r.status}`);
+    const j: any = await r.json();
+    const divs = j?.chart?.result?.[0]?.events?.dividends;
+    const out: DividendoYahoo[] = divs
+      ? Object.values<any>(divs).map((d) => ({ data: new Date(d.date * 1000), valor: d.amount }))
+      : [];
+    cacheDividendos.set(chave, out);
+    return out;
+  } catch (e) {
+    // Yahoo fora: devolve a última lista conhecida em vez de "sem proventos".
+    const velho = usarCache ? cacheDividendos.getStale(chave) : null;
+    if (velho) return reviverDividendos(velho);
+    throw e;
+  }
+}
+
+// O cache em disco guarda Date como string; normaliza na leitura.
+function reviverDividendos(lista: DividendoYahoo[]): DividendoYahoo[] {
+  return lista.map((d) => ({ data: new Date(d.data), valor: d.valor }));
 }
 
 export async function buscarVarias(tickers: string[]) {
@@ -64,11 +98,10 @@ export type Historico52s = {
   precos: number[];
 };
 
-import { CacheLRU } from "../cache";
-
 const cacheHistorico = new CacheLRU<Historico52s>({
   max: 200,
   ttlMs: 60 * 60 * 1000,
+  staleMs: TRINTA_DIAS_MS,
   arquivo: process.env.NODE_ENV === "production"
     ? "/app/data/cache-historico.json"
     : "./.cache-historico.json",
@@ -185,24 +218,32 @@ export async function buscarHistorico52s(ticker: string): Promise<Historico52s |
   const cached = cacheHistorico.get(chave);
   if (cached) return cached;
 
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sufixar(chave)}?interval=1d&range=1y`;
-  const r = await fetchTimeout(url, { headers: { "User-Agent": UA } });
-  if (!r.ok) return null;
-  const j: any = await r.json();
-  const closes: (number | null)[] = j?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
-  const precoAtual = j?.chart?.result?.[0]?.meta?.regularMarketPrice ?? null;
-  const validos = closes.filter((c): c is number => c != null && c > 0);
-  if (!precoAtual || validos.length < 30) return null;
+  let out: Historico52s | null = null;
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${sufixar(chave)}?interval=1d&range=1y`;
+    const r = await fetchTimeout(url, { headers: { "User-Agent": UA } });
+    if (r.ok) {
+      const j: any = await r.json();
+      const closes: (number | null)[] = j?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
+      const precoAtual = j?.chart?.result?.[0]?.meta?.regularMarketPrice ?? null;
+      const validos = closes.filter((c): c is number => c != null && c > 0);
+      if (precoAtual && validos.length >= 30) {
+        const ordenados = [...validos].sort((a, b) => a - b);
+        out = {
+          ticker: chave,
+          precoAtual,
+          max: Math.max(...validos),
+          min: Math.min(...validos),
+          mediana: ordenados[Math.floor(ordenados.length / 2)],
+          precos: validos,
+        };
+      }
+    }
+  } catch {
+    // rede/Yahoo fora — cai no último histórico conhecido abaixo
+  }
 
-  const ordenados = [...validos].sort((a, b) => a - b);
-  const out: Historico52s = {
-    ticker: chave,
-    precoAtual,
-    max: Math.max(...validos),
-    min: Math.min(...validos),
-    mediana: ordenados[Math.floor(ordenados.length / 2)],
-    precos: validos,
-  };
+  if (!out) return cacheHistorico.getStale(chave);
   cacheHistorico.set(chave, out);
   return out;
 }

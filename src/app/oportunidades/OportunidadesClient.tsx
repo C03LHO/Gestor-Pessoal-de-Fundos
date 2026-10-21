@@ -17,6 +17,7 @@ type Op = {
   notas: string | null;
   precoAtual: number;
   janelaDias: number;
+  historicoIndisponivel: boolean;
   valuation: Valuation;
   max52s: number;
   min52s: number;
@@ -38,6 +39,10 @@ type Op = {
 type MetaPayload =
   | { metaTipo: "VALOR"; metaInvestimento: number }
   | { metaTipo: "COTAS"; metaCotas: number };
+
+const SEM_HISTORICO_INFO = {
+  rotulo: "Sem histórico", cor: "text-zinc-400", bg: "bg-zinc-800/30", border: "border-zinc-700/40",
+};
 
 const CLASSE_INFO: Record<ClasseValuation, { rotulo: string; cor: string; bg: string; border: string }> = {
   muito_barato: { rotulo: "Muito barato", cor: "text-emerald-300", bg: "bg-emerald-500/15", border: "border-emerald-500/30" },
@@ -72,6 +77,7 @@ export function OportunidadesClient({ oportunidades }: { oportunidades: Op[] }) 
   const totalMeta = oportunidades.reduce((s, o) => s + o.metaInvestimento, 0);
   const totalInvestido = oportunidades.reduce((s, o) => s + o.investido, 0);
   const totalFalta = totalMeta - totalInvestido;
+  const semHistorico = oportunidades.filter((o) => o.historicoIndisponivel).length;
 
   async function adicionar() {
     if (!novoTicker.trim()) return;
@@ -141,6 +147,16 @@ export function OportunidadesClient({ oportunidades }: { oportunidades: Op[] }) 
         </div>
         <MetaGlobalButton onAplicar={aplicarMetaEmTodos} />
       </header>
+
+      {semHistorico > 0 && (
+        <div className="flex gap-2 items-start rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            Não foi possível buscar o histórico de {semHistorico === oportunidades.length ? "nenhum ativo" : `${semHistorico} ativo(s)`} no
+            Yahoo Finance. Os preços abaixo são os últimos salvos e a análise de valuation fica suspensa até a conexão voltar.
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <div className="card">
@@ -245,7 +261,7 @@ function OportunidadeCard({
 }: { o: Op; onAjustarMeta: () => void; onRemover: () => void }) {
   const [expandido, setExpandido] = useState(false);
   const v = o.valuation;
-  const info = CLASSE_INFO[v.classe];
+  const info = o.historicoIndisponivel ? SEM_HISTORICO_INFO : CLASSE_INFO[v.classe];
 
   // Posição do marcador na régua: usa percentil verdadeiro
   const posPct = Math.max(2, Math.min(98, v.percentilHistorico));
@@ -298,7 +314,7 @@ function OportunidadeCard({
         info.bg, info.border,
       )}>
         <div className={cn("font-semibold mb-0.5", info.cor)}>
-          {info.rotulo} · percentil {v.percentilHistorico.toFixed(0)}
+          {o.historicoIndisponivel ? info.rotulo : `${info.rotulo} · percentil ${v.percentilHistorico.toFixed(0)}`}
         </div>
         <div className="text-zinc-300">{v.resumo}</div>
       </div>

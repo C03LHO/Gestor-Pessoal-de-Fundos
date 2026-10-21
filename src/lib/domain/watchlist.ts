@@ -65,6 +65,9 @@ export type Oportunidade = {
   precoAtual: number;
   // Janela analisada (12m dia a dia)
   janelaDias: number;
+  // true quando o Yahoo não respondeu e não há histórico guardado: o card
+  // aparece com o último preço do banco e sem análise de valuation.
+  historicoIndisponivel: boolean;
   // Análise completa de valuation (engine centralizada)
   valuation: Valuation;
   // Campos legacy mantidos por compat. com a UI antiga — derivados do valuation.
@@ -107,9 +110,14 @@ export async function calcularOportunidades(carteiraId?: string): Promise<Oportu
 
   for (let i = 0; i < watchlist.length; i++) {
     const w = watchlist[i];
-    const historico = historicos[i];
-    if (!historico) continue;
     const ativo = ativos.find((a) => a.ticker === w.ticker);
+    // Sem histórico (Yahoo fora e sem reserva em cache): mantém o ativo na
+    // lista com o último preço salvo, em vez de sumir com ele da página.
+    const historico = historicos[i] ?? {
+      precoAtual: ativo?.precoAtual ?? 0,
+      precos: [] as number[],
+    };
+    const historicoIndisponivel = historicos[i] == null;
 
     // Posição via engine centralizada (PM correto + lucro realizado etc.)
     let cotas = 0, investido = 0;
@@ -174,6 +182,7 @@ export async function calcularOportunidades(carteiraId?: string): Promise<Oportu
       notas: w.notas,
       precoAtual: preco,
       janelaDias: historico.precos.length,
+      historicoIndisponivel,
       valuation,
       // Aliases legacy (não usados pela UI nova, mas mantidos por compat.)
       max52s: valuation.max,

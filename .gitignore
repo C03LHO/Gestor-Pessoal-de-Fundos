@@ -20,6 +20,7 @@ backups/
 # Caches
 .cache-historico.json
 .cache-serie.json
+.cache-dividendos.json
 
 # Sistema
 .DS_Store

@@ -65,7 +65,7 @@ export async function buscarDividendosConfigurado(
   const cfg = await prisma.configuracao.findFirst();
 
   const tentativas: { nome: Fonte; fn: () => Promise<DividendoYahoo[]> }[] = [
-    { nome: "yahoo",        fn: () => buscarDividendosYahoo(ticker, anos) },
+    { nome: "yahoo",        fn: () => buscarDividendosYahoo(ticker, anos, { usarCache: false }) },
     { nome: "statusinvest", fn: () => buscarDividendosStatusInvest(ticker) },
     { nome: "fundamentus",  fn: () => buscarDividendosFundamentus(ticker) },
   ];

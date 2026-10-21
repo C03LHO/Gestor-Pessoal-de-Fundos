@@ -13,21 +13,43 @@ export class CacheLRU<T> {
   private timer: NodeJS.Timeout | null = null;
 
   constructor(
-    private opts: { max: number; ttlMs: number; arquivo?: string },
+    private opts: {
+      max: number;
+      ttlMs: number;
+      arquivo?: string;
+      // Quanto tempo um item vencido continua guardado como reserva para
+      // getStale() — útil quando a fonte externa cai. 0 = descarta ao vencer.
+      staleMs?: number;
+    },
   ) {
     if (opts.arquivo) this.carregarDoDisco();
+  }
+
+  private guardarAte(e: Entry<T>) {
+    return e.expiraEm + (this.opts.staleMs ?? 0);
   }
 
   get(key: string): T | null {
     const e = this.map.get(key);
     if (!e) return null;
     if (e.expiraEm <= Date.now()) {
-      this.map.delete(key);
+      if (this.guardarAte(e) <= Date.now()) this.map.delete(key);
       return null;
     }
     // toca: move pro fim (LRU)
     this.map.delete(key);
     this.map.set(key, e);
+    return e.data;
+  }
+
+  /** Último valor conhecido, mesmo vencido (dentro de staleMs). */
+  getStale(key: string): T | null {
+    const e = this.map.get(key);
+    if (!e) return null;
+    if (this.guardarAte(e) <= Date.now()) {
+      this.map.delete(key);
+      return null;
+    }
     return e.data;
   }
 
@@ -58,7 +80,7 @@ export class CacheLRU<T> {
       const dir = dirname(arquivo);
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
       const payload = Array.from(this.map.entries())
-        .filter(([, v]) => v.expiraEm > Date.now())
+        .filter(([, v]) => this.guardarAte(v) > Date.now())
         .slice(-this.opts.max);
       // Write atômico: escreve em .tmp, depois rename (POSIX garante atomicidade)
       writeFileSync(tmp, JSON.stringify(payload), "utf-8");
@@ -75,7 +97,7 @@ export class CacheLRU<T> {
       const raw = readFileSync(this.opts.arquivo, "utf-8");
       const arr = JSON.parse(raw) as [string, Entry<T>][];
       for (const [k, v] of arr) {
-        if (v.expiraEm > Date.now()) this.map.set(k, v);
+        if (this.guardarAte(v) > Date.now()) this.map.set(k, v);
       }
     } catch { /* ignora arquivo corrompido */ }
   }
