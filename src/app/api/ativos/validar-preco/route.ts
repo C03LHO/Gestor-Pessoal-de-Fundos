@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ehOutlier } from "@/lib/domain/estatistica";
+import { brl } from "@/lib/format";
 
 /**
  * Verifica se um preço está fora do padrão histórico do ativo (evita
@@ -35,6 +36,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     outlier: out,
     mediana,
-    sugestao: out ? `Padrão histórico é ~R$ ${mediana?.toFixed(2)}. Confira se o valor está correto.` : null,
+    sugestao: out ? `Padrão histórico é ~${brl(mediana ?? 0)}. Confira se o valor está correto.` : null,
   });
 }

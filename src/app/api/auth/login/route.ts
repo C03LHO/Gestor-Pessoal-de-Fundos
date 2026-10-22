@@ -3,15 +3,24 @@ import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { opcoesCookieSessao } from "@/lib/cookie";
 import { log } from "@/lib/log";
+import { redirecionar } from "@/lib/redirect";
 
 export const runtime = "nodejs";
 
-// Rate limit em memória: bloqueia >5 tentativas erradas em 60s da mesma origem
+// Rate limit em memória: bloqueia >5 tentativas erradas em 60s da mesma origem.
+// A "origem" vem do x-forwarded-for, que o cliente pode forjar quando não há
+// proxy na frente (porta 3000 direta) — por isso há também um teto GLOBAL:
+// 20 erros em 10 min travam o login para todos até a janela passar.
+const LIMITE_GLOBAL = 20;
+const JANELA_GLOBAL_MS = 10 * 60_000;
+let falhasGlobais: { count: number; ate: number } = { count: 0, ate: 0 };
+
 const tentativas = new Map<string, { count: number; ate: number }>();
 function chave(req: NextRequest) {
   return (req.headers.get("x-forwarded-for") ?? "local").split(",")[0].trim();
 }
 function bloqueado(req: NextRequest): boolean {
+  if (Date.now() <= falhasGlobais.ate && falhasGlobais.count >= LIMITE_GLOBAL) return true;
   const k = chave(req);
   const t = tentativas.get(k);
   if (!t) return false;
@@ -25,6 +34,9 @@ function registrarFalha(req: NextRequest) {
     ? { count: 1, ate: Date.now() + 60_000 }
     : { count: t.count + 1, ate: t.ate };
   tentativas.set(k, novo);
+  falhasGlobais = Date.now() > falhasGlobais.ate
+    ? { count: 1, ate: Date.now() + JANELA_GLOBAL_MS }
+    : { count: falhasGlobais.count + 1, ate: falhasGlobais.ate };
 }
 function limparFalhas(req: NextRequest) {
   tentativas.delete(chave(req));
@@ -45,7 +57,7 @@ function senhaConfere(informada: string, esperada: string): boolean {
 export async function POST(req: NextRequest) {
   if (bloqueado(req)) {
     log.warn("auth.login.rate_limited", { ip: chave(req) });
-    return NextResponse.redirect(new URL("/login?erro=bloqueado", req.url), { status: 303 });
+    return redirecionar("/login?erro=bloqueado");
   }
 
   const form = await req.formData();
@@ -55,7 +67,7 @@ export async function POST(req: NextRequest) {
   if (!senhaConfere(senha, env)) {
     registrarFalha(req);
     log.warn("auth.login.failed", { ip: chave(req) });
-    return NextResponse.redirect(new URL("/login?erro=1", req.url), { status: 303 });
+    return redirecionar("/login?erro=1");
   }
 
   limparFalhas(req);
@@ -67,7 +79,7 @@ export async function POST(req: NextRequest) {
   const cookieValor = `${hash}.${versao}`;
 
   log.info("auth.login.ok", { ip: chave(req), versao });
-  const res = NextResponse.redirect(new URL("/", req.url), { status: 303 });
+  const res = redirecionar("/");
   res.cookies.set("fundos_auth", cookieValor, opcoesCookieSessao(req));
   return res;
 }

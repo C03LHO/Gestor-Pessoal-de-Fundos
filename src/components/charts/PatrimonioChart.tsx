@@ -1,6 +1,6 @@
 "use client";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
-import { brl } from "@/lib/format";
+import { brl, mesAno } from "@/lib/format";
 import {
   CHART_COLORS, AXIS_STYLE, AXIS_LABEL_TICK, GRID_PROPS,
   TOOLTIP_CONTENT_STYLE, TOOLTIP_LABEL_STYLE, TOOLTIP_ITEM_STYLE, TOOLTIP_CURSOR,
@@ -24,7 +24,7 @@ export function PatrimonioChart({ data }: { data: { mes: string; investido: numb
           </linearGradient>
         </defs>
         <CartesianGrid {...GRID_PROPS} />
-        <XAxis dataKey="mes" {...AXIS_STYLE} tick={AXIS_LABEL_TICK} minTickGap={20} />
+        <XAxis dataKey="mes" {...AXIS_STYLE} tick={AXIS_LABEL_TICK} minTickGap={20} tickFormatter={(v) => mesAno(v, true)} />
         <YAxis
           {...AXIS_STYLE}
           tick={AXIS_LABEL_TICK}
@@ -37,6 +37,7 @@ export function PatrimonioChart({ data }: { data: { mes: string; investido: numb
           itemStyle={TOOLTIP_ITEM_STYLE}
           cursor={TOOLTIP_CURSOR}
           formatter={(v: number) => brl(v)}
+          labelFormatter={(l) => mesAno(String(l))}
         />
         <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} iconType="circle" iconSize={9} />
         <Area

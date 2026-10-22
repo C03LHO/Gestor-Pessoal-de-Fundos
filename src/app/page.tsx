@@ -1,7 +1,7 @@
 import { DividendosChart } from "@/components/charts/DividendosChart";
 import { AlocacaoChart } from "@/components/charts/AlocacaoChart";
 import { PatrimonioChart } from "@/components/charts/PatrimonioChart";
-import { brl, formatarMeses, pct } from "@/lib/format";
+import { brl, formatarMeses, mesAno, pct } from "@/lib/format";
 import { calcularPosicoes, resumoCarteira } from "@/lib/domain/posicao";
 import { mesesAteMeta } from "@/lib/domain/projecao";
 import { dividendosDoMes, dividendosPorMes } from "@/lib/domain/insights";
@@ -31,6 +31,7 @@ import Link from "next/link";
 import { AlertTriangle, Info, TrendingUp, Sparkles, Trophy, Target as TargetIcon, TrendingDown, ChevronRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+
 
 export default async function Dashboard({
   searchParams,
@@ -429,7 +430,7 @@ export default async function Dashboard({
               icon={<CalendarIcon size={14} />}
               label="Meses investindo"
               valor={mesesInvestindo.toString()}
-              hint={mesesInvestindo === 1 ? "começou agora" : `${(mesesInvestindo / 12).toFixed(1)} anos`}
+              hint={mesesInvestindo === 1 ? "começou agora" : mesesInvestindo < 12 ? `${mesesInvestindo} meses` : `${(mesesInvestindo / 12).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} anos`}
             />
             <StatBox
               icon={<Activity size={14} />}
@@ -441,7 +442,7 @@ export default async function Dashboard({
               icon={<Award size={14} />}
               label="Melhor mês"
               valor={melhorMes.total > 0 ? brl(melhorMes.total) : "—"}
-              hint={melhorMes.mes || ""}
+              hint={mesAno(melhorMes.mes)}
               accent="emerald"
             />
             <StatBox

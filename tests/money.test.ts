@@ -48,3 +48,15 @@ describe("money — precisão", () => {
     expect(toReais(969)).toBe(9.69);
   });
 });
+
+import { mesAno } from "../src/lib/format";
+describe("mesAno", () => {
+  it("formata AAAA-MM em pt-BR", () => {
+    expect(mesAno("2026-10")).toBe("out/2026");
+    expect(mesAno("2025-01", true)).toBe("jan/25");
+  });
+  it("deixa outros formatos intactos", () => {
+    expect(mesAno("Novembro")).toBe("Novembro");
+    expect(mesAno(undefined)).toBe("");
+  });
+});

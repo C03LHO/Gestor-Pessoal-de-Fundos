@@ -1,3 +1,4 @@
+import { TrendingUp, Lock } from "lucide-react";
 import { LoginPasskey } from "./LoginPasskey";
 
 type Search = { erro?: string; expired?: string };
@@ -7,11 +8,17 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const erro = sp?.erro;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-950">
-      <div className="card max-w-sm w-full">
-        <div className="text-center mb-6">
+    <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="card max-w-sm w-full p-6 md:p-7 shadow-2xl shadow-black/50">
+        <div className="text-center mb-7">
+          <span className="mx-auto mb-4 grid place-items-center w-12 h-12 rounded-2xl text-zinc-950 shadow-lg shadow-emerald-500/25"
+                style={{ background: "linear-gradient(135deg, #6ee7b7, #10b981 55%, #0891b2)" }}>
+            <TrendingUp size={22} strokeWidth={2.5} />
+          </span>
           <div className="text-2xl font-semibold tracking-tight">Fundos</div>
-          <p className="text-xs text-zinc-500 mt-1">Acesso restrito</p>
+          <p className="text-xs text-zinc-500 mt-1 inline-flex items-center gap-1">
+            <Lock size={11} /> Acesso restrito
+          </p>
         </div>
 
         <form method="POST" action="/api/auth/login" className="space-y-3">
@@ -44,7 +51,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           )}
           {erro === "bloqueado" && (
             <div className="text-sm text-amber-300 bg-amber-950/30 border border-amber-900/40 rounded-lg px-3 py-2">
-              Muitas tentativas. Tente novamente em 1 minuto.
+              Muitas tentativas. Aguarde alguns minutos e tente de novo.
             </div>
           )}
           {erro === "expired" && (
@@ -59,9 +66,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </form>
 
         <div className="my-4 flex items-center gap-2 text-[10px] text-zinc-600">
-          <div className="flex-1 border-t border-zinc-800" />
+          <div className="flex-1 border-t border-white/[0.06]" />
           <span>ou</span>
-          <div className="flex-1 border-t border-zinc-800" />
+          <div className="flex-1 border-t border-white/[0.06]" />
         </div>
 
         <LoginPasskey />

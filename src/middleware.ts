@@ -24,12 +24,18 @@ async function sha256(s: string): Promise<string> {
 }
 
 export async function middleware(req: NextRequest) {
-  const senha = process.env.APP_PASSWORD;
-  if (!senha) return NextResponse.next();
-
   const { pathname } = req.nextUrl;
-  if (CAMINHOS_PUBLICOS.has(pathname)) return NextResponse.next();
-  if (PREFIXOS_PUBLICOS.some((p) => pathname.startsWith(p))) return NextResponse.next();
+  // Repassa o caminho ao layout (server component não tem acesso a ele), para
+  // que /login renderize sem menu, seletor de carteira e sync.
+  const reqHeaders = new Headers(req.headers);
+  reqHeaders.set("x-pathname", pathname);
+  const seguir = () => NextResponse.next({ request: { headers: reqHeaders } });
+
+  const senha = process.env.APP_PASSWORD;
+  if (!senha) return seguir();
+
+  if (CAMINHOS_PUBLICOS.has(pathname)) return seguir();
+  if (PREFIXOS_PUBLICOS.some((p) => pathname.startsWith(p))) return seguir();
 
   const cookie = req.cookies.get("fundos_auth")?.value;
   if (!cookie) return redirecionarLogin(req);
@@ -51,9 +57,9 @@ export async function middleware(req: NextRequest) {
   // Sliding refresh: renova validade do cookie em cada navegação para HTML.
   // Pula para chamadas API (não precisa renovar a cada request).
   const aceitaHtml = req.headers.get("accept")?.includes("text/html");
-  if (!aceitaHtml) return NextResponse.next();
+  if (!aceitaHtml) return seguir();
 
-  const res = NextResponse.next();
+  const res = seguir();
   const proto = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol.replace(":", "");
   res.cookies.set("fundos_auth", cookie, {
     httpOnly: true,

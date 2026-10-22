@@ -20,3 +20,11 @@ export const dataBR = (d: Date | string) => {
   const dt = typeof d === "string" ? new Date(d) : d;
   return dt.toLocaleDateString("pt-BR");
 };
+
+/** "2026-10" -> "out/2026" (ou "out/26" com anoCurto). Outros formatos passam intactos. */
+export const mesAno = (ym: string | undefined, anoCurto = false) => {
+  if (!ym || !/^\d{4}-\d{2}$/.test(ym)) return ym ?? "";
+  const [a, m] = ym.split("-").map(Number);
+  const mes = new Date(a, m - 1, 1).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "");
+  return `${mes}/${anoCurto ? String(a).slice(2) : a}`;
+};

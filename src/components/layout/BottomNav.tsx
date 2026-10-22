@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Wallet, ListPlus, TrendingDown, MoreHorizontal,
-  Target, Calculator, FileText, BarChart3, Settings, X, CalendarDays, LineChart, Coins, Layers,
+  Target, Calculator, FileText, Settings, X, CalendarDays, LineChart, Coins, Layers,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -17,7 +17,6 @@ const principaisFii = [
 
 const secundariosFii = [
   { href: "/graficos",      label: "Gráficos",      icon: LineChart },
-  { href: "/resumo",        label: "Resumo",        icon: BarChart3 },
   { href: "/calendario",    label: "Calendário",    icon: CalendarDays },
   { href: "/metas",         label: "Metas",         icon: Target },
   { href: "/simulador",     label: "Simulador",     icon: Calculator },
@@ -48,9 +47,9 @@ export function BottomNav({ tipo = "FII" }: { tipo?: "FII" | "CRIPTO" }) {
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-zinc-950/95 backdrop-blur border-t border-zinc-900 print:hidden"
-           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-        <div className="grid grid-cols-5">
+      <nav className="md:hidden fixed inset-x-3 z-30 rounded-2xl border border-white/[0.08] bg-zinc-950/80 backdrop-blur-xl shadow-2xl shadow-black/60 print:hidden"
+           style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+        <div className="grid grid-cols-5 px-1">
           {principais.map(({ href, label, icon: Icon }) => {
             const ativo =
               href === "/" ? p === "/" :
@@ -58,36 +57,44 @@ export function BottomNav({ tipo = "FII" }: { tipo?: "FII" | "CRIPTO" }) {
               p.startsWith(href);
             return (
               <Link key={href} href={href}
+                aria-current={ativo ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center gap-1 py-2 text-[11px]",
-                  ativo ? "text-emerald-400" : "text-zinc-500",
+                  "flex flex-col items-center gap-1 py-2.5 text-[10.5px] font-medium transition",
+                  ativo ? "text-emerald-300" : "text-zinc-500 active:text-zinc-300",
                 )}>
-                <Icon size={18} />
+                <span className={cn("grid place-items-center w-10 h-7 rounded-full transition", ativo && "bg-emerald-500/15")}>
+                  <Icon size={18} />
+                </span>
                 {label}
               </Link>
             );
           })}
           <button
             onClick={() => setAberto(true)}
+            aria-label="Mais páginas"
             className={cn(
-              "flex flex-col items-center gap-1 py-2 text-[11px]",
-              secundarios.some((s) => p.startsWith(s.href)) ? "text-emerald-400" : "text-zinc-500",
+              "flex flex-col items-center gap-1 py-2.5 text-[10.5px] font-medium transition",
+              secundarios.some((s) => p.startsWith(s.href)) ? "text-emerald-300" : "text-zinc-500",
             )}
           >
-            <MoreHorizontal size={18} />
+            <span className={cn("grid place-items-center w-10 h-7 rounded-full transition",
+              secundarios.some((s) => p.startsWith(s.href)) && "bg-emerald-500/15")}>
+              <MoreHorizontal size={18} />
+            </span>
             Mais
           </button>
         </div>
       </nav>
 
       {aberto && (
-        <div className="md:hidden fixed inset-0 z-40 bg-black/70" onClick={() => setAberto(false)}>
+        <div className="md:hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm chart-modal-backdrop" onClick={() => setAberto(false)}>
           <div
-            className="absolute bottom-0 inset-x-0 bg-zinc-950 border-t border-zinc-800 rounded-t-2xl"
+            className="absolute bottom-0 inset-x-0 bg-zinc-950/95 backdrop-blur-xl border-t border-white/[0.08] rounded-t-3xl chart-modal-panel"
             style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center px-4 py-3 border-b border-zinc-800">
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-zinc-700" />
+            <div className="flex justify-between items-center px-4 py-3">
               <h2 className="font-semibold">Mais</h2>
               <button onClick={() => setAberto(false)} className="text-zinc-500 p-1"><X size={20} /></button>
             </div>
@@ -100,10 +107,10 @@ export function BottomNav({ tipo = "FII" }: { tipo?: "FII" | "CRIPTO" }) {
                     href={href}
                     onClick={() => setAberto(false)}
                     className={cn(
-                      "flex flex-col items-center gap-2 py-4 rounded-xl border",
+                      "flex flex-col items-center gap-2 py-4 rounded-2xl border transition active:scale-95",
                       ativo
                         ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-                        : "border-zinc-800 text-zinc-300",
+                        : "border-white/[0.06] bg-white/[0.02] text-zinc-300",
                     )}
                   >
                     <Icon size={20} />

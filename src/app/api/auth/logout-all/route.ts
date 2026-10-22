@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/log";
+import { redirecionar } from "@/lib/redirect";
 
 export const runtime = "nodejs";
 
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
 
   log.info("auth.logout-all", { novaVersao: cfg.authVersion + 1 });
 
-  const res = NextResponse.redirect(new URL("/login", req.url), { status: 303 });
+  const res = redirecionar("/login");
   res.cookies.delete("fundos_auth");
   return res;
 }

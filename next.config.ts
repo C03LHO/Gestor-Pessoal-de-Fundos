@@ -12,6 +12,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: headersSeguranca }];
   },
+  async redirects() {
+    // A aba Resumo foi removida; links/favoritos antigos caem no Dashboard.
+    return [{ source: "/resumo", destination: "/", permanent: false }];
+  },
 };
 
 export default nextConfig;

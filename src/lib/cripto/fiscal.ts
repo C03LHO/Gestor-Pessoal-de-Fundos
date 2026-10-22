@@ -14,6 +14,7 @@
  */
 import { toCent, toReais, multiplicar } from "@/lib/money";
 import { CRYPTO_BY_ID } from "./constants";
+import { brl } from "@/lib/format";
 import type { CryptoTxInput } from "./carteira";
 
 export const LIMITE_ISENCAO_CRIPTO = 35000;
@@ -110,8 +111,8 @@ export function apurarCriptoMes(
     operacoes.length === 0
       ? "Sem vendas de cripto no período."
       : isento
-        ? `Vendas de R$ ${totalVendasMes.toFixed(2)} no mês — abaixo do limite de isenção (R$ ${limiteFmt}). Ganho isento de IR.`
-        : `Vendas de R$ ${totalVendasMes.toFixed(2)} acima do limite de R$ ${limiteFmt}. IR de 15% sobre o lucro. DARF código 4600, vencimento no último dia útil do mês seguinte.`;
+        ? `Vendas de ${brl(totalVendasMes)} no mês — abaixo do limite de isenção (R$ ${limiteFmt}). Ganho isento de IR.`
+        : `Vendas de ${brl(totalVendasMes)} acima do limite de R$ ${limiteFmt}. IR de 15% sobre o lucro. DARF código 4600, vencimento no último dia útil do mês seguinte.`;
 
   return {
     ano,

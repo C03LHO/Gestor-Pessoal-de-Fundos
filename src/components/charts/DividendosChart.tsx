@@ -1,6 +1,6 @@
 "use client";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
-import { brl } from "@/lib/format";
+import { brl, mesAno } from "@/lib/format";
 import {
   CHART_COLORS, AXIS_STYLE, AXIS_LABEL_TICK, GRID_PROPS,
   TOOLTIP_CONTENT_STYLE, TOOLTIP_LABEL_STYLE, TOOLTIP_ITEM_STYLE, TOOLTIP_CURSOR,
@@ -24,6 +24,7 @@ export function DividendosChart({ data }: { data: { mes: string; total: number }
           {...AXIS_STYLE}
           tick={AXIS_LABEL_TICK}
           minTickGap={20}
+          tickFormatter={(v) => mesAno(v, true)}
         />
         <YAxis
           {...AXIS_STYLE}
@@ -37,6 +38,7 @@ export function DividendosChart({ data }: { data: { mes: string; total: number }
           itemStyle={TOOLTIP_ITEM_STYLE}
           cursor={TOOLTIP_CURSOR}
           formatter={(v: number) => [brl(v), "Dividendos"]}
+          labelFormatter={(l) => mesAno(String(l))}
         />
         <Area
           type="monotone"

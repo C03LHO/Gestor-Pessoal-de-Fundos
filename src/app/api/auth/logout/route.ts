@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { redirecionar } from "@/lib/redirect";
 
 export async function POST(req: NextRequest) {
-  const res = NextResponse.redirect(new URL("/login", req.url), { status: 303 });
+  const res = redirecionar("/login");
   res.cookies.delete("fundos_auth");
   return res;
 }

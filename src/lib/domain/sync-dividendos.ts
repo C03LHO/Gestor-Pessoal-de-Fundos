@@ -2,6 +2,7 @@ import { prisma } from "../prisma";
 import { buscarDividendosConfigurado } from "../mercado/dividendos";
 import { enviarParaTodos } from "../push";
 import { log } from "../log";
+import { brl } from "../format";
 import { getCarteiraAtivaId } from "../carteira";
 import {
   planejarSyncDividendos,
@@ -94,8 +95,8 @@ export async function sincronizarDividendosDoAtivo(
   for (const p of paraCriar) {
     if (Date.now() - p.data.getTime() < seteDias) {
       enviarParaTodos({
-        titulo: `${ativo.ticker} pagou R$ ${p.valor.toFixed(2)}`,
-        corpo: `${p.cotas} cotas × R$ ${p.valorPorCota.toFixed(4)}`,
+        titulo: `${ativo.ticker} pagou ${brl(p.valor)}`,
+        corpo: `${p.cotas} cotas × R$ ${p.valorPorCota.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`,
         url: `/carteira/${ativo.ticker}`,
         tag: `div-${ativo.ticker}-${p.key}`,
       }).catch(() => {});

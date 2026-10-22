@@ -1,3 +1,4 @@
+import "@fontsource-variable/inter";
 import "@/styles/globals.css";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -8,6 +9,8 @@ import { PullToRefresh } from "@/components/ux/PullToRefresh";
 import { RegistrarSW } from "@/components/ux/RegistrarSW";
 import { ToastProvider } from "@/components/ux/Toast";
 import { CarteiraSwitcher } from "@/components/layout/CarteiraSwitcher";
+import { headers } from "next/headers";
+import { ShieldAlert } from "lucide-react";
 import { validarSessao } from "@/lib/auth-guard";
 import { getCarteiraAtiva, listarCarteiras } from "@/lib/carteira";
 
@@ -32,7 +35,7 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: "#09090b",
+  themeColor: "#07070a",
   width: "device-width",
   initialScale: 1,
   // Acessibilidade: permite o usuário dar zoom (antes estava travado em 1x).
@@ -42,16 +45,31 @@ export const viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Login: só a página, sem navegação nem dados da carteira.
+  if ((await headers()).get("x-pathname") === "/login") {
+    return (
+      <html lang="pt-BR" className="dark">
+        <body className="min-h-screen text-zinc-100 antialiased">{children}</body>
+      </html>
+    );
+  }
+
   await validarSessao();
   const { id: ativaId, tipo } = await getCarteiraAtiva();
   const carteiras = await listarCarteiras();
+  const senha = process.env.APP_PASSWORD ?? "";
+  const avisoSenha = !senha
+    ? "Este app está sem senha: qualquer pessoa na sua rede ou Tailscale consegue abrir. Defina APP_PASSWORD na stack do Portainer."
+    : senha.length < 8
+      ? "A senha do app é curta (menos de 8 caracteres). Use uma mais longa em APP_PASSWORD."
+      : null;
 
   return (
     <html lang="pt-BR" className="dark">
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
-      <body className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
+      <body className="min-h-screen text-zinc-100 antialiased">
         <ToastProvider>
         <RegistrarSW />
         <PullToRefresh />
@@ -61,7 +79,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             className="flex-1 p-4 md:p-10 pb-28 md:pb-10 max-w-7xl mx-auto w-full"
             style={{
               paddingTop: "max(1rem, env(safe-area-inset-top))",
-              paddingBottom: "max(6rem, calc(env(safe-area-inset-bottom) + 4.5rem))",
+              paddingBottom: "max(7rem, calc(env(safe-area-inset-bottom) + 6rem))",
             }}
           >
             {/* mobile fix: flex-wrap evita overflow horizontal em 375px */}
@@ -73,6 +91,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <AutoSync />
               </div>
             </div>
+            {avisoSenha && (
+              <div role="alert" className="mb-4 flex gap-2 items-start rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200 print:hidden">
+                <ShieldAlert size={16} className="shrink-0 mt-px" />
+                <span>{avisoSenha}</span>
+              </div>
+            )}
             {children}
           </main>
         </div>

@@ -1,5 +1,6 @@
 import { prisma } from "../prisma";
 import { somarLista } from "../money";
+import { brl } from "../format";
 
 export type Insight = {
   id: string;
@@ -54,8 +55,8 @@ export async function gerarInsights(carteiraId?: string): Promise<Insight[]> {
     insights.push({
       id: "recorde",
       tipo: "vitoria",
-      titulo: `🏆 Recorde de proventos no mês`,
-      detalhe: `R$ ${valorAtual.toFixed(2)} — sua maior média mensal até hoje.`,
+      titulo: `Recorde de proventos no mês`,
+      detalhe: `${brl(valorAtual)} — sua maior média mensal até hoje.`,
     });
   }
 
@@ -67,9 +68,9 @@ export async function gerarInsights(carteiraId?: string): Promise<Insight[]> {
         id: "mom",
         tipo: variacao > 0 ? "vitoria" : "info",
         titulo: variacao > 0
-          ? `📈 +${(variacao * 100).toFixed(0)}% vs mês anterior`
-          : `📉 ${(variacao * 100).toFixed(0)}% vs mês anterior`,
-        detalhe: `Recebido este mês: R$ ${valorAtual.toFixed(2)} (antes R$ ${valorAnterior.toFixed(2)}).`,
+          ? `+${(variacao * 100).toFixed(0)}% vs mês anterior`
+          : `${(variacao * 100).toFixed(0)}% vs mês anterior`,
+        detalhe: `Recebido este mês: ${brl(valorAtual)} (antes ${brl(valorAnterior)}).`,
       });
     }
   }
@@ -85,7 +86,7 @@ export async function gerarInsights(carteiraId?: string): Promise<Insight[]> {
         id: "top-mes",
         tipo: "info",
         titulo: `${topAtivo} foi seu top pagador neste mês`,
-        detalhe: `R$ ${topValor.toFixed(2)} (${pct.toFixed(0)}% do total).`,
+        detalhe: `${brl(topValor)} (${pct.toFixed(0)}% do total).`,
       });
     }
   }
@@ -98,8 +99,8 @@ export async function gerarInsights(carteiraId?: string): Promise<Insight[]> {
       insights.push({
         id: `marco-${m}`,
         tipo: "marco",
-        titulo: `🎯 Você passou de R$ ${m.toLocaleString("pt-BR")} em proventos acumulados`,
-        detalhe: `Total recebido até hoje: R$ ${acumulado.toFixed(2)}.`,
+        titulo: `Você passou de ${brl(m)} em proventos acumulados`,
+        detalhe: `Total recebido até hoje: ${brl(acumulado)}.`,
       });
       break;
     }
@@ -115,7 +116,7 @@ export async function gerarInsights(carteiraId?: string): Promise<Insight[]> {
     insights.push({
       id: "streak",
       tipo: "vitoria",
-      titulo: `🔥 ${streak} meses seguidos recebendo dividendos`,
+      titulo: `${streak} meses seguidos recebendo dividendos`,
       detalhe: `Consistência é o motor do longo prazo.`,
     });
   }
