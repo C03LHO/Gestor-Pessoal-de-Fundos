@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { parseBody } from "@/lib/api";
+import { garantirConfiguracao } from "@/lib/configuracao";
 
 const schema = z.object({
   fonteCotacao: z.enum(["yahoo", "brapi"]).optional(),
@@ -21,8 +22,7 @@ export async function POST(req: NextRequest) {
   const parsed = await parseBody(req, schema);
   if (!parsed.ok) return parsed.response;
   const body = parsed.data;
-  const atual = await prisma.configuracao.findFirst();
-  if (!atual) return new NextResponse("sem configuração", { status: 500 });
+  const atual = await garantirConfiguracao();
   const cfg = await prisma.configuracao.update({ where: { id: atual.id }, data: body });
   return NextResponse.json(cfg);
 }

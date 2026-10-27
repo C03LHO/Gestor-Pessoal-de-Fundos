@@ -1,6 +1,7 @@
 import webpush from "web-push";
 import { prisma } from "./prisma";
 import { log } from "./log";
+import { garantirConfiguracao } from "./configuracao";
 
 let configurado = false;
 let vapidPromise: Promise<{ vapidPublicKey: string }> | null = null;
@@ -16,8 +17,7 @@ export async function garantirVapid() {
   if (vapidPromise) return vapidPromise;
 
   vapidPromise = (async () => {
-    const cfg = await prisma.configuracao.findFirst();
-    if (!cfg) throw new Error("Configuracao não inicializada");
+    const cfg = await garantirConfiguracao();
 
     let pub = cfg.vapidPublicKey;
     let priv = cfg.vapidPrivateKey;

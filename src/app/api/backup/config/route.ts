@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { parseBody } from "@/lib/api";
+import { garantirConfiguracao } from "@/lib/configuracao";
 
 export const runtime = "nodejs";
 
@@ -21,8 +22,7 @@ export async function POST(req: NextRequest) {
   const parsed = await parseBody(req, schema);
   if (!parsed.ok) return parsed.response;
   const body = parsed.data;
-  const cfg = await prisma.configuracao.findFirst();
-  if (!cfg) return new NextResponse("sem configuração", { status: 500 });
+  const cfg = await garantirConfiguracao();
 
   const atualizado = await prisma.configuracao.update({
     where: { id: cfg.id },

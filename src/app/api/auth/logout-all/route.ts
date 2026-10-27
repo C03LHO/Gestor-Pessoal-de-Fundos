@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/log";
 import { redirecionar } from "@/lib/redirect";
+import { garantirConfiguracao } from "@/lib/configuracao";
 
 export const runtime = "nodejs";
 
@@ -10,8 +11,7 @@ export const runtime = "nodejs";
  * antigos viram inválidos na próxima requisição (verificação no layout).
  */
 export async function POST(req: NextRequest) {
-  const cfg = await prisma.configuracao.findFirst();
-  if (!cfg) return new NextResponse("sem configuracao", { status: 500 });
+  const cfg = await garantirConfiguracao();
 
   await prisma.configuracao.update({
     where: { id: cfg.id },
