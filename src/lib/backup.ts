@@ -165,8 +165,12 @@ export async function executarBackup(): Promise<{
     ], 5 * 60_000);
 
     if (cfg.backupRetencaoDias > 0) {
+      // Só apaga arquivos de backup deste app. Sem o --include, um destino
+      // apontado para a raiz do Drive apagaria qualquer arquivo antigo do usuário.
       await execBin(bin, [
         "delete", cfg.backupRemote,
+        "--include", "data-*.db",
+        "--max-depth", "1",
         "--min-age", `${cfg.backupRetencaoDias}d`,
       ], 60_000).catch(() => {});
     }

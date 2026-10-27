@@ -7,7 +7,11 @@ export const runtime = "nodejs";
 
 const schema = z.object({
   habilitado: z.boolean().optional(),
-  remote: z.string().nullable().optional(),
+  // Exige uma pasta depois do remote ("gdrive:Fundos-Backup"), nunca a raiz:
+  // a rotina de retenção apaga backups antigos dentro desse destino.
+  remote: z.string().trim()
+    .regex(/^[\w.-]+:[^\s].*$/, "Use remote:pasta, ex.: gdrive:Fundos-Backup")
+    .nullable().optional(),
   horario: z.number().int().min(0).max(23).optional(),
   retencaoDias: z.number().int().min(1).max(3650).optional(),
   rcloneCaminho: z.string().nullable().optional(),
